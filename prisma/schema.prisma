@@ -1,0 +1,37 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id             String    @id @default(uuid())
+  name           String
+  subdomain      String    @unique
+  customDomain   String?   @unique
+  
+  primaryColor   String    @default("#000000")
+  accentColor    String    @default("#D4AF37")
+  logoUrl        String?
+  disclosureText String?
+
+  cjPublisherId  String?
+  rakutenSiteId  String?
+
+  products       Product[]
+  createdAt      DateTime  @default(now())
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title        String
+  category     String
+  price        Float
+  imageUrl     String
+  affiliateUrl String
+  createdAt    DateTime @default(now())
+}
