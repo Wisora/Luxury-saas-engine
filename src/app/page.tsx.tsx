@@ -26,6 +26,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { PrivacyPolicy } from "../components/PrivacyPolicy";
 import { TermsOfService } from "../components/TermsOfService";
 import { AffiliateBanner } from "../components/AffiliateBanner";
+import { DomainSettingsCard } from "../components/DomainSettingsCard";
 
 type ActiveView = "dashboard" | "privacy" | "terms";
 
@@ -510,6 +511,13 @@ export default function App() {
                     </motion.div>
                   </AnimatePresence>
                 </ErrorBoundary>
+
+                {/* Custom Domain Management Panel */}
+                <DomainSettingsCard
+                  tenantId="tenant_aura_watches_01"
+                  subdomain="watches"
+                  initialCustomDomain="aurawatchco.com"
+                />
 
                 <div className="bg-[#0b0e14] border border-gray-800 rounded-xl overflow-hidden shadow-lg">
                   <div className="bg-gray-900/60 px-4 py-3 border-b border-gray-800 flex items-center justify-between">
