@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from "react";
-import { LuxuryItem, VIPDrop } from "../types";
+import { LuxuryItem, VIPDrop, PipelineLog, SystemMetrics } from "../types";
 
 interface AuditResult {
   trustScore: number;
@@ -10,7 +10,7 @@ interface AuditResult {
 
 interface PhasePanelProps {
   activePhase?: number;
-  phaseId?: number; // Supports prop passed by App.tsx
+  phaseId?: number;
   items: LuxuryItem[];
   setItems: React.Dispatch<React.SetStateAction<LuxuryItem[]>>;
   isSystemActive?: boolean;
@@ -21,50 +21,72 @@ interface PhasePanelProps {
   setAutoScale?: React.Dispatch<React.SetStateAction<boolean>>;
   monetizationEnabled?: boolean;
   setMonetizationEnabled?: React.Dispatch<React.SetStateAction<boolean>>;
-  logs?: any[];
+  logs?: PipelineLog[];
   addLog?: (
     phase: number,
     agent: string,
     message: string,
     status: "info" | "success" | "warning" | "error"
   ) => void;
-  systemMetrics?: any;
-  setSystemMetrics?: any;
+  systemMetrics?: SystemMetrics;
+  setSystemMetrics?: React.Dispatch<React.SetStateAction<SystemMetrics>>;
 }
 
 const PremiumMarkdown: React.FC<{ content: string }> = ({ content }) => {
-  const formatted = content
-    .replace(
-      /^### (.*$)/gim,
-      '<h3 class="text-lg font-serif font-bold text-gold-300 mt-4 mb-2">$1</h3>'
-    )
-    .replace(
-      /^## (.*$)/gim,
-      '<h2 class="text-xl font-serif font-bold text-gold-400 mt-6 mb-3">$1</h2>'
-    )
-    .replace(
-      /^# (.*$)/gim,
-      '<h1 class="text-2xl font-serif font-bold text-gold-400 mt-6 mb-4">$1</h1>'
-    )
-    .replace(
-      /\*\*(.*?)\*\*/g,
-      '<strong class="text-gold-200 font-semibold">$1</strong>'
-    )
-    .replace(
-      /^\* (.*$)/gim,
-      '<li class="ml-4 list-disc text-slate-300 my-1">$1</li>'
-    )
-    .replace(
-      /^- (.*$)/gim,
-      '<li class="ml-4 list-disc text-slate-300 my-1">$1</li>'
-    )
-    .replace(/\n\n/g, "<br/><br/>");
+  const parseInline = (text: string) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={index} className="text-gold-200 font-semibold">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+  };
+
+  const paragraphs = content.split(/\n\n+/);
 
   return (
-    <div
-      className="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: formatted }}
-    />
+    <div className="prose prose-invert max-w-none text-slate-300 text-sm leading-relaxed space-y-3">
+      {paragraphs.map((para, idx) => {
+        const trimmed = para.trim();
+        if (trimmed.startsWith("### ")) {
+          return (
+            <h3 key={idx} className="text-lg font-serif font-bold text-gold-300 mt-4 mb-2">
+              {trimmed.replace(/^###\s+/, "")}
+            </h3>
+          );
+        }
+        if (trimmed.startsWith("## ")) {
+          return (
+            <h2 key={idx} className="text-xl font-serif font-bold text-gold-400 mt-6 mb-3">
+              {trimmed.replace(/^##\s+/, "")}
+            </h2>
+          );
+        }
+        if (trimmed.startsWith("# ")) {
+          return (
+            <h1 key={idx} className="text-2xl font-serif font-bold text-gold-400 mt-6 mb-4">
+              {trimmed.replace(/^#\s+/, "")}
+            </h1>
+          );
+        }
+        if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+          const items = trimmed.split(/\n[*|-]\s+/);
+          return (
+            <ul key={idx} className="list-disc pl-5 space-y-1 text-slate-300">
+              {items.map((item, itemIdx) => (
+                <li key={itemIdx}>{parseInline(item.replace(/^[*|-]\s+/, ""))}</li>
+              ))}
+            </ul>
+          );
+        }
+        return <p key={idx}>{parseInline(trimmed)}</p>;
+      })}
+    </div>
   );
 };
 
@@ -82,7 +104,6 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
   monetizationEnabled = false,
   setMonetizationEnabled = () => {},
 }) => {
-  // Derive phase index prioritizing activePhase, phaseId, or default 1
   const activePhase = propActivePhase ?? phaseId ?? 1;
 
   // Phase 1 State
@@ -92,9 +113,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
 
   // Phase 2 State
   const [auditingId, setAuditingId] = useState<string | null>(null);
-  const [auditResults, setAuditResults] = useState<Record<string, AuditResult>>(
-    {}
-  );
+  const [auditResults, setAuditResults] = useState<Record<string, AuditResult>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -123,6 +142,11 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   const handleAnalyzeCategory = async () => {
@@ -159,11 +183,11 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: item.name,
-          brandOrCreator: item.brandOrCreator,
+          name: item.title,
+          brandOrCreator: item.brand,
           category: item.category,
-          price: item.price,
-          provenanceDescription: item.complianceNotes,
+          price: `${item.currency} ${item.price}`,
+          provenanceDescription: `Merchant: ${item.merchantName} | Network: ${item.network}`,
           imageBase64,
           mimeType,
         }),
@@ -177,8 +201,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
           i.id === item.id
             ? {
                 ...i,
-                trustScore: data.trustScore,
-                complianceStatus: data.complianceStatus,
+                score: data.trustScore,
               }
             : i
         )
@@ -237,7 +260,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
     try {
       const res = await fetch("/api/export-pdf");
       if (!res.ok) throw new Error("Report generation failed.");
-      
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -277,9 +300,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                   : "bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 hover:bg-emerald-900"
               }`}
             >
-              {isSystemActive
-                ? "Pause Ingestion Feed"
-                : "Resume Ingestion Feed"}
+              {isSystemActive ? "Pause Ingestion Feed" : "Resume Ingestion Feed"}
             </button>
           </div>
 
@@ -308,9 +329,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
               disabled={analyzing}
               className="px-5 py-2.5 bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-slate-950 font-semibold text-xs rounded-lg transition cursor-pointer"
             >
-              {analyzing
-                ? "Synthesizing Signals..."
-                : `Analyze ${selectedCategory} Trends`}
+              {analyzing ? "Synthesizing Signals..." : `Analyze ${selectedCategory} Trends`}
             </button>
           </div>
 
@@ -343,17 +362,15 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                   className="h-32 object-cover rounded border border-gold-500/40"
                 />
                 <button
-                  onClick={() => {
-                    setImageFile(null);
-                    setImagePreview(null);
-                  }}
+                  type="button"
+                  onClick={handleRemoveImage}
                   className="absolute -top-2 -right-2 bg-red-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-800 cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
             ) : (
-              <label className="cursor-pointer block space-y-2">
+              <label htmlFor="file-upload" className="cursor-pointer block space-y-2">
                 <span className="text-xs text-gold-300 font-medium block">
                   📷 Optional: Upload Visual Asset for Gemini Multimodal Inspection
                 </span>
@@ -361,6 +378,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                   Supports PNG, JPG, WEBP (hallmark verification, condition check)
                 </span>
                 <input
+                  id="file-upload"
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
@@ -379,21 +397,20 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-slate-200">
-                      {item.name}
+                      {item.title}
                     </span>
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded ${
-                        item.complianceStatus === "Passed"
+                        item.inStock
                           ? "bg-emerald-950 text-emerald-400 border border-emerald-800"
-                          : "bg-amber-950 text-amber-400 border border-amber-800"
+                          : "bg-red-950 text-red-400 border border-red-800"
                       }`}
                     >
-                      {item.complianceStatus}
+                      {item.inStock ? "In Stock" : "Out of Stock"}
                     </span>
                   </div>
                   <div className="text-xs text-slate-400">
-                    {item.brandOrCreator} • {item.price} • Trust Score:{" "}
-                    {item.trustScore}%
+                    {item.brand} • {item.currency} {item.price.toLocaleString()} • Merchant: {item.merchantName} ({item.network}) • Trust Score: {item.score ?? "N/A"}%
                   </div>
                 </div>
 
@@ -408,12 +425,9 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                 {auditResults[item.id] && (
                   <div className="w-full mt-3 p-4 bg-slate-900 border border-gold-500/20 rounded-lg text-xs">
                     <div className="font-semibold text-gold-400 mb-1">
-                      Audit Status: {auditResults[item.id].complianceStatus}{" "}
-                      (Trust: {auditResults[item.id].trustScore}%)
+                      Audit Status: {auditResults[item.id].complianceStatus} (Trust: {auditResults[item.id].trustScore}%)
                     </div>
-                    <PremiumMarkdown
-                      content={auditResults[item.id].auditReport}
-                    />
+                    <PremiumMarkdown content={auditResults[item.id].auditReport} />
                   </div>
                 )}
               </div>
@@ -562,9 +576,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
               disabled={generatingVip}
               className="px-5 py-2.5 bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-slate-950 font-semibold text-xs rounded-lg transition cursor-pointer"
             >
-              {generatingVip
-                ? "Curating VIP Drop..."
-                : "Generate AI VIP Drop Campaign"}
+              {generatingVip ? "Curating VIP Drop..." : "Generate AI VIP Drop Campaign"}
             </button>
 
             {vipDrop && (
@@ -618,7 +630,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
           </div>
 
           {spatialView && (
-            <div className="h-48 border border-gold-500/40 rounded-lg bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center text-xs text-gold-300">
+            <div className="h-48 border border-gold-500/40 rounded-lg bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center text-xs text-gold-300">
               [3D Spatial Viewport Active — Spatial Mesh Loaded]
             </div>
           )}

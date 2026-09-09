@@ -36,3 +36,12 @@ export interface SystemMetrics {
   estRevenue: number;
   roi: number;
 }
+
+export interface VIPDrop {
+  id?: string;
+  title: string;
+  description: string;
+  targetAudience?: string;
+  newsletterMarkdown: string;
+  curatedItemIds?: string[];
+}

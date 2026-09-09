@@ -1,9 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 import "dotenv/config";
 
-const connectionString = `${process.env.DIRECT_URL || process.env.DATABASE_URL}`;
-const adapter = new PrismaPg({ connectionString });
+const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+
+// Initialize standard pg connection pool required by @prisma/adapter-pg
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
@@ -48,4 +52,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end(); // Cleanly close pool connections
   });

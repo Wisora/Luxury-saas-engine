@@ -1,4 +1,5 @@
-'use client';
+"use client";
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -34,7 +35,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [currentPhase, setCurrentPhase] = useState<number>(1);
   const [items, setItems] = useState<LuxuryItem[]>(() =>
-    Array.isArray(INITIAL_LUXURY_ITEMS) ? INITIAL_LUXURY_ITEMS : []
+    Array.isArray(INITIAL_LUXURY_ITEMS) ? INITIAL_LUXURY_ITEMS : [],
   );
   const [logs, setLogs] = useState<PipelineLog[]>(() =>
     Array.isArray(INITIAL_LOGS)
@@ -42,7 +43,7 @@ export default function App() {
           ...log,
           id: `${Date.now()}-${log.id}`,
         }))
-      : []
+      : [],
   );
 
   const [systemMetrics, setSystemMetrics] = useState({
@@ -56,7 +57,9 @@ export default function App() {
   });
 
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">("connecting");
+  const [wsStatus, setWsStatus] = useState<
+    "connected" | "connecting" | "disconnected"
+  >("connecting");
 
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectDelayRef = useRef<number>(1000); // Base retry: 1 sec
@@ -68,7 +71,11 @@ export default function App() {
         const res = await fetch("/api/items");
         if (res.ok) {
           const data = await res.json();
-          if (isMounted && Array.isArray(data?.items) && data.items.length > 0) {
+          if (
+            isMounted &&
+            Array.isArray(data?.items) &&
+            data.items.length > 0
+          ) {
             setItems(data.items);
           }
         }
@@ -88,7 +95,8 @@ export default function App() {
       try {
         const AudioContextClass =
           window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext;
         if (!AudioContextClass) return;
         const ctx = new AudioContextClass();
         const osc = ctx.createOscillator();
@@ -116,7 +124,10 @@ export default function App() {
           osc.frequency.setValueAtTime(440.0, ctx.currentTime);
           osc.type = "triangle";
           gain.gain.setValueAtTime(0.03, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+          gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            ctx.currentTime + 0.15,
+          );
           osc.start();
           osc.stop(ctx.currentTime + 0.18);
         } else if (type === "warn") {
@@ -132,7 +143,7 @@ export default function App() {
         // Silently skip context creation issues
       }
     },
-    [soundEnabled]
+    [soundEnabled],
   );
 
   const addLog = useCallback(
@@ -140,9 +151,11 @@ export default function App() {
       phase: number,
       agent: string,
       message: string,
-      status: "info" | "success" | "warning" | "error"
+      status: "info" | "success" | "warning" | "error",
     ) => {
-      const safeStatus = ["info", "success", "warning", "error"].includes(status)
+      const safeStatus = ["info", "success", "warning", "error"].includes(
+        status,
+      )
         ? status
         : "info";
 
@@ -155,13 +168,16 @@ export default function App() {
         status: safeStatus,
       };
 
-      setLogs((prev) => [newLog, ...(Array.isArray(prev) ? prev : [])].slice(0, 50));
+      setLogs((prev) =>
+        [newLog, ...(Array.isArray(prev) ? prev : [])].slice(0, 50),
+      );
 
       if (safeStatus === "success") playLuxuryTone("success");
-      else if (safeStatus === "warning" || safeStatus === "error") playLuxuryTone("warn");
+      else if (safeStatus === "warning" || safeStatus === "error")
+        playLuxuryTone("warn");
       else playLuxuryTone("click");
     },
-    [playLuxuryTone]
+    [playLuxuryTone],
   );
 
   // Exponential Backoff Auto-Reconnecting WebSocket
@@ -189,20 +205,24 @@ export default function App() {
           if (!isMounted || !event.data) return;
           try {
             const data = JSON.parse(event.data);
-            
+
             if (data && typeof data === "object") {
               if (Array.isArray(data.items)) {
                 setItems(data.items);
               }
               const rawLevel = data.level || "info";
               const mappedStatus =
-                rawLevel === "warning" ? "warning" : rawLevel === "success" ? "success" : "info";
+                rawLevel === "warning"
+                  ? "warning"
+                  : rawLevel === "success"
+                    ? "success"
+                    : "info";
 
               addLog(
                 currentPhase,
                 data.agent || "Backend WS Stream",
                 data.message || "Telemetry heartbeat received",
-                mappedStatus
+                mappedStatus,
               );
             }
           } catch {
@@ -230,7 +250,8 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (reconnectTimeoutRef.current)
+        clearTimeout(reconnectTimeoutRef.current);
       if (ws) {
         ws.onopen = null;
         ws.onmessage = null;
@@ -247,20 +268,56 @@ export default function App() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      const collectors: Array<{ name: string; phase: number; msg: string; type: "info" | "success" | "warning" | "error" }> = [
-        { name: "Farfetch Collector", phase: 1, msg: "Polled exotic accessories index. Cache delta: +0.4%.", type: "info" },
-        { name: "Chrono24 Collector", phase: 1, msg: "Audited regional pricing indices. 4 active items verified.", type: "success" },
-        { name: "1stDibs Collector", phase: 1, msg: "Sync completed for contemporary art catalog feeds.", type: "info" },
-        { name: "Sothebys Realty", phase: 1, msg: "Parsed Duplex listing maps. Structural deeds authenticated.", type: "info" },
-        { name: "Data Validation Agent", phase: 2, msg: "Running automatic SHA-256 validation scans...", type: "success" },
-        { name: "Caching Agent", phase: 4, msg: "Prerendered 5 fresh catalog sheets to edge servers.", type: "info" },
+      const collectors: Array<{
+        name: string;
+        phase: number;
+        msg: string;
+        type: "info" | "success" | "warning" | "error";
+      }> = [
+        {
+          name: "Farfetch Collector",
+          phase: 1,
+          msg: "Polled exotic accessories index. Cache delta: +0.4%.",
+          type: "info",
+        },
+        {
+          name: "Chrono24 Collector",
+          phase: 1,
+          msg: "Audited regional pricing indices. 4 active items verified.",
+          type: "success",
+        },
+        {
+          name: "1stDibs Collector",
+          phase: 1,
+          msg: "Sync completed for contemporary art catalog feeds.",
+          type: "info",
+        },
+        {
+          name: "Sothebys Realty",
+          phase: 1,
+          msg: "Parsed Duplex listing maps. Structural deeds authenticated.",
+          type: "info",
+        },
+        {
+          name: "Data Validation Agent",
+          phase: 2,
+          msg: "Running automatic SHA-256 validation scans...",
+          type: "success",
+        },
+        {
+          name: "Caching Agent",
+          phase: 4,
+          msg: "Prerendered 5 fresh catalog sheets to edge servers.",
+          type: "info",
+        },
       ];
 
       const item = collectors[Math.floor(Math.random() * collectors.length)];
 
       setSystemMetrics((prev) => ({
         ...prev,
-        itemsProcessed: (prev.itemsProcessed || 0) + Math.floor(Math.random() * 2) + 1,
+        itemsProcessed:
+          (prev.itemsProcessed || 0) + Math.floor(Math.random() * 2) + 1,
       }));
 
       addLog(item.phase, item.name, item.msg, item.type);
@@ -285,13 +342,13 @@ export default function App() {
       {/* Network Compliance Disclosure Banner */}
       <AffiliateBanner />
 
-      <header className="border-b border-gray-800/80 bg-[#0f141d]/90 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-gray-800/80 bg-[#0f141d]/90 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => handleViewChange("dashboard")}
             className="flex items-center gap-3 text-left focus:outline-none group"
           >
-            <div className="h-9 w-9 bg-linear-to-tr from-amber-600 to-amber-400 rounded-lg flex items-center justify-center shadow-lg relative overflow-hidden group-hover:scale-105 transition-transform">
+            <div className="h-9 w-9 bg-gradient-to-tr from-amber-600 to-amber-400 rounded-lg flex items-center justify-center shadow-lg relative overflow-hidden group-hover:scale-105 transition-transform">
               <span className="font-serif font-black text-black text-lg tracking-tighter">
                 A
               </span>
@@ -312,7 +369,7 @@ export default function App() {
           </button>
         </div>
 
-        <nav className="hidden md:flex items-center gap-4 text-xs font-mono">
+        <nav className="hidden md:flex items-center gap-3 text-xs font-mono">
           <button
             onClick={() => handleViewChange("dashboard")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
@@ -348,15 +405,15 @@ export default function App() {
           </button>
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full bg-gray-900 border border-gray-800">
             <span
               className={`h-2 w-2 rounded-full ${
                 wsStatus === "connected"
                   ? "bg-emerald-400 animate-pulse"
                   : wsStatus === "connecting"
-                  ? "bg-amber-400 animate-ping"
-                  : "bg-red-500"
+                    ? "bg-amber-400 animate-ping"
+                    : "bg-red-500"
               }`}
             />
             <span className="text-gray-400 uppercase">{wsStatus}</span>
@@ -378,12 +435,12 @@ export default function App() {
             {soundEnabled ? (
               <>
                 <Volume2 className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                <span>CHIMES ON</span>
+                <span className="hidden sm:inline">CHIMES ON</span>
               </>
             ) : (
               <>
                 <VolumeX className="w-3.5 h-3.5 text-gray-500" />
-                <span>MUTE</span>
+                <span className="hidden sm:inline">MUTE</span>
               </>
             )}
           </button>
@@ -420,13 +477,48 @@ export default function App() {
 
                   <div className="space-y-1.5">
                     {[
-                      { id: 1, label: "Market Scanner", icon: Compass, sub: "Phase 1: Collectors" },
-                      { id: 2, label: "Governance & Safety", icon: ShieldCheck, sub: "Phase 2: Trust Guard" },
-                      { id: 3, label: "Optimization Metrics", icon: BarChart3, sub: "Phase 3: Conversions" },
-                      { id: 4, label: "Automation Engine", icon: Zap, sub: "Phase 4: CDN & Caches" },
-                      { id: 5, label: "Revenue Drops", icon: Coins, sub: "Phase 5: VIP Drops" },
-                      { id: 6, label: "Future Provisions", icon: Sparkles, sub: "Phase 6: Voice & AR" },
-                      { id: 7, label: "Investor Portal", icon: LineChart, sub: "Phase 7: Strategy Hub" },
+                      {
+                        id: 1,
+                        label: "Market Scanner",
+                        icon: Compass,
+                        sub: "Phase 1: Collectors",
+                      },
+                      {
+                        id: 2,
+                        label: "Governance & Safety",
+                        icon: ShieldCheck,
+                        sub: "Phase 2: Trust Guard",
+                      },
+                      {
+                        id: 3,
+                        label: "Optimization Metrics",
+                        icon: BarChart3,
+                        sub: "Phase 3: Conversions",
+                      },
+                      {
+                        id: 4,
+                        label: "Automation Engine",
+                        icon: Zap,
+                        sub: "Phase 4: CDN & Caches",
+                      },
+                      {
+                        id: 5,
+                        label: "Revenue Drops",
+                        icon: Coins,
+                        sub: "Phase 5: VIP Drops",
+                      },
+                      {
+                        id: 6,
+                        label: "Future Provisions",
+                        icon: Sparkles,
+                        sub: "Phase 6: Voice & AR",
+                      },
+                      {
+                        id: 7,
+                        label: "Investor Portal",
+                        icon: LineChart,
+                        sub: "Phase 7: Strategy Hub",
+                      },
                     ].map((phase) => {
                       const Icon = phase.icon;
                       const isSelected = currentPhase === phase.id;
@@ -530,7 +622,9 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`h-2 w-2 rounded-full ${
-                          wsStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                          wsStatus === "connected"
+                            ? "bg-emerald-500 animate-pulse"
+                            : "bg-amber-500"
                         }`}
                       />
                       <span className="text-[10px] font-mono text-gray-500">
@@ -551,7 +645,7 @@ export default function App() {
                             [{log.timestamp}]
                           </span>
                           <span
-                            className={`text-[10px] px-1.5 py-0.2 rounded shrink-0 ${
+                            className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
                               log.status === "success"
                                 ? "bg-emerald-950 text-emerald-400 border border-emerald-800/40"
                                 : log.status === "warning"
@@ -563,7 +657,7 @@ export default function App() {
                           >
                             P{log.phase} - {log.agent}
                           </span>
-                          <span className="text-gray-300 wrap-break-word flex-1">
+                          <span className="text-gray-300 wrap-break-word flex-1 min-w-0">
                             {log.message}
                           </span>
                         </div>
@@ -579,18 +673,19 @@ export default function App() {
 
       <footer className="border-t border-gray-900/80 bg-[#0f141d]/20 py-6 mt-12 px-6 text-center text-xs font-mono text-gray-600 space-y-2">
         <div>
-          Aura Luxury Pipeline &copy; 2026 Wisora Organization. All rights reserved.
+          Aura Luxury Pipeline &copy; 2026 Wisora Organization. All rights
+          reserved.
         </div>
         <div className="flex justify-center space-x-6">
-          <button 
-            onClick={() => handleViewChange("privacy")} 
-            className="hover:text-amber-400 transition-colors underline"
+          <button
+            onClick={() => handleViewChange("privacy")}
+            className="hover:text-amber-400 transition-colors underline cursor-pointer"
           >
             Privacy Policy
           </button>
-          <button 
-            onClick={() => handleViewChange("terms")} 
-            className="hover:text-amber-400 transition-colors underline"
+          <button
+            onClick={() => handleViewChange("terms")}
+            className="hover:text-amber-400 transition-colors underline cursor-pointer"
           >
             Terms & Affiliate Disclosure
           </button>
