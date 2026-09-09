@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Compass,
@@ -29,13 +30,28 @@ import { TermsOfService } from "../components/TermsOfService";
 import { AffiliateBanner } from "../components/AffiliateBanner";
 import { DomainSettingsCard } from "../components/DomainSettingsCard";
 
+// Initialize Supabase Client safely
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
+
 type ActiveView = "dashboard" | "privacy" | "terms";
+
+interface TelemetryPayload {
+  phase?: number;
+  agent?: string;
+  message?: string;
+  status?: "info" | "success" | "warning" | "error";
+}
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [currentPhase, setCurrentPhase] = useState<number>(1);
   const [items, setItems] = useState<LuxuryItem[]>(() =>
-    Array.isArray(INITIAL_LUXURY_ITEMS) ? INITIAL_LUXURY_ITEMS : [],
+    Array.isArray(INITIAL_LUXURY_ITEMS) ? INITIAL_LUXURY_ITEMS : []
   );
   const [logs, setLogs] = useState<PipelineLog[]>(() =>
     Array.isArray(INITIAL_LOGS)
@@ -43,7 +59,7 @@ export default function App() {
           ...log,
           id: `${Date.now()}-${log.id}`,
         }))
-      : [],
+      : []
   );
 
   const [systemMetrics, setSystemMetrics] = useState({
@@ -57,32 +73,32 @@ export default function App() {
   });
 
   const [soundEnabled, setSoundEnabled] = useState(false);
+
+  // Initialize status directly to avoid synchronous setState inside useEffect body
   const [wsStatus, setWsStatus] = useState<
     "connected" | "connecting" | "disconnected"
-  >("connecting");
+  >(() => (supabase ? "connecting" : "disconnected"));
 
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectDelayRef = useRef<number>(1000); // Base retry: 1 sec
-
+  // Fetch initial data from Supabase DB
   useEffect(() => {
     let isMounted = true;
     const fetchInitialData = async () => {
+      if (!supabase) return;
+
       try {
-        const res = await fetch("/api/items");
-        if (res.ok) {
-          const data = await res.json();
-          if (
-            isMounted &&
-            Array.isArray(data?.items) &&
-            data.items.length > 0
-          ) {
-            setItems(data.items);
-          }
+        const { data, error } = await supabase
+          .from("luxury_items")
+          .select("*")
+          .limit(20);
+
+        if (!error && data && data.length > 0 && isMounted) {
+          setItems(data as LuxuryItem[]);
         }
       } catch {
         // Retain initial mock data fallback
       }
     };
+
     fetchInitialData();
     return () => {
       isMounted = false;
@@ -126,7 +142,7 @@ export default function App() {
           gain.gain.setValueAtTime(0.03, ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(
             0.0001,
-            ctx.currentTime + 0.15,
+            ctx.currentTime + 0.15
           );
           osc.start();
           osc.stop(ctx.currentTime + 0.18);
@@ -140,10 +156,10 @@ export default function App() {
           osc.stop(ctx.currentTime + 0.45);
         }
       } catch {
-        // Silently skip context creation issues
+        // Silently skip audio issues
       }
     },
-    [soundEnabled],
+    [soundEnabled]
   );
 
   const addLog = useCallback(
@@ -151,10 +167,10 @@ export default function App() {
       phase: number,
       agent: string,
       message: string,
-      status: "info" | "success" | "warning" | "error",
+      status: "info" | "success" | "warning" | "error"
     ) => {
       const safeStatus = ["info", "success", "warning", "error"].includes(
-        status,
+        status
       )
         ? status
         : "info";
@@ -169,7 +185,7 @@ export default function App() {
       };
 
       setLogs((prev) =>
-        [newLog, ...(Array.isArray(prev) ? prev : [])].slice(0, 50),
+        [newLog, ...(Array.isArray(prev) ? prev : [])].slice(0, 50)
       );
 
       if (safeStatus === "success") playLuxuryTone("success");
@@ -177,92 +193,51 @@ export default function App() {
         playLuxuryTone("warn");
       else playLuxuryTone("click");
     },
-    [playLuxuryTone],
+    [playLuxuryTone]
   );
 
-  // Exponential Backoff Auto-Reconnecting WebSocket
+  // Native Supabase Realtime Connection Handler
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let isMounted = true;
-    const WS_PORT = "5000";
+    if (!supabase) return;
 
-    const connect = () => {
-      if (!isMounted) return;
-      setWsStatus("connecting");
-
-      try {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.hostname || "localhost";
-        ws = new WebSocket(`${protocol}//${host}:${WS_PORT}`);
-
-        ws.onopen = () => {
-          if (!isMounted) return;
-          setWsStatus("connected");
-          reconnectDelayRef.current = 1000;
-        };
-
-        ws.onmessage = (event) => {
-          if (!isMounted || !event.data) return;
-          try {
-            const data = JSON.parse(event.data);
-
-            if (data && typeof data === "object") {
-              if (Array.isArray(data.items)) {
-                setItems(data.items);
-              }
-              const rawLevel = data.level || "info";
-              const mappedStatus =
-                rawLevel === "warning"
-                  ? "warning"
-                  : rawLevel === "success"
-                    ? "success"
-                    : "info";
-
-              addLog(
-                currentPhase,
-                data.agent || "Backend WS Stream",
-                data.message || "Telemetry heartbeat received",
-                mappedStatus,
-              );
-            }
-          } catch {
-            // Silently ignore parse errors
+    const channel = supabase
+      .channel("pipeline-telemetry")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pipeline_logs" },
+        (payload) => {
+          const logData = payload.new as TelemetryPayload | null;
+          if (logData) {
+            addLog(
+              logData.phase || currentPhase,
+              logData.agent || "Supabase DB Stream",
+              logData.message || "Database state updated",
+              logData.status || "info"
+            );
           }
-        };
-
-        ws.onclose = () => {
-          if (!isMounted) return;
+        }
+      )
+      .on("broadcast", { event: "telemetry" }, (payload) => {
+        const data = payload.payload as TelemetryPayload | null;
+        if (data) {
+          addLog(
+            data.phase || currentPhase,
+            data.agent || "Supabase Broadcast",
+            data.message || "Realtime broadcast received",
+            data.status || "info"
+          );
+        }
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setWsStatus("connected");
+        } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
           setWsStatus("disconnected");
-          const nextDelay = Math.min(reconnectDelayRef.current * 2, 16000);
-          reconnectDelayRef.current = nextDelay;
-          reconnectTimeoutRef.current = setTimeout(connect, nextDelay);
-        };
-
-        ws.onerror = () => {
-          if (ws) ws.close();
-        };
-      } catch {
-        setWsStatus("disconnected");
-      }
-    };
-
-    connect();
+        }
+      });
 
     return () => {
-      isMounted = false;
-      if (reconnectTimeoutRef.current)
-        clearTimeout(reconnectTimeoutRef.current);
-      if (ws) {
-        ws.onopen = null;
-        ws.onmessage = null;
-        ws.onerror = null;
-        ws.onclose = null;
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        } else if (ws.readyState === WebSocket.CONNECTING) {
-          ws.onopen = () => ws?.close();
-        }
-      }
+      supabase.removeChannel(channel);
     };
   }, [currentPhase, addLog]);
 
@@ -339,7 +314,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-amber-100 flex flex-col font-sans selection:bg-amber-500/20 selection:text-amber-300 antialiased">
-      {/* Network Compliance Disclosure Banner */}
       <AffiliateBanner />
 
       <header className="border-b border-gray-800/80 bg-[#0f141d]/90 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
@@ -412,11 +386,13 @@ export default function App() {
                 wsStatus === "connected"
                   ? "bg-emerald-400 animate-pulse"
                   : wsStatus === "connecting"
-                    ? "bg-amber-400 animate-ping"
-                    : "bg-red-500"
+                  ? "bg-amber-400 animate-ping"
+                  : "bg-red-500"
               }`}
             />
-            <span className="text-gray-400 uppercase">{wsStatus}</span>
+            <span className="text-gray-400 uppercase">
+              {wsStatus === "connected" ? "SUPABASE REALTIME" : wsStatus}
+            </span>
           </div>
 
           <button
@@ -535,7 +511,9 @@ export default function App() {
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Icon
-                              className={`w-4 h-4 shrink-0 ${isSelected ? "text-amber-400" : "text-gray-500"}`}
+                              className={`w-4 h-4 shrink-0 ${
+                                isSelected ? "text-amber-400" : "text-gray-500"
+                              }`}
                             />
                             <div className="min-w-0">
                               <div className="text-[11.5px] font-medium truncate">
@@ -604,7 +582,6 @@ export default function App() {
                   </AnimatePresence>
                 </ErrorBoundary>
 
-                {/* Custom Domain Management Panel */}
                 <DomainSettingsCard
                   tenantId="tenant_aura_watches_01"
                   subdomain="watches"
@@ -628,7 +605,7 @@ export default function App() {
                         }`}
                       />
                       <span className="text-[10px] font-mono text-gray-500">
-                        Node: aura-pipeline-core-01
+                        Supabase Engine
                       </span>
                     </div>
                   </div>
@@ -649,10 +626,10 @@ export default function App() {
                               log.status === "success"
                                 ? "bg-emerald-950 text-emerald-400 border border-emerald-800/40"
                                 : log.status === "warning"
-                                  ? "bg-amber-950 text-amber-400 border border-amber-800/40"
-                                  : log.status === "error"
-                                    ? "bg-red-950 text-red-400 border border-red-800/40"
-                                    : "bg-blue-950 text-blue-400 border border-blue-900/40"
+                                ? "bg-amber-950 text-amber-400 border border-amber-800/40"
+                                : log.status === "error"
+                                ? "bg-red-950 text-red-400 border border-red-800/40"
+                                : "bg-blue-950 text-blue-400 border border-blue-900/40"
                             }`}
                           >
                             P{log.phase} - {log.agent}
