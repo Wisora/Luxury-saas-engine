@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
 
-  // 1. Pass through standard Vercel deployment URLs & local development
+  // 1. Allow standard Vercel domain and localhost to serve root landing page
   if (
     hostname.includes('.vercel.app') ||
     hostname.includes('localhost') ||
@@ -13,11 +13,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Custom multi-tenant subdomain resolution (if visiting via custom subdomains)
+  // 2. Multi-client dynamic subdomain resolution
   const url = request.nextUrl.clone();
-  const currentHost = hostname.split(':')[0]; // remove port if present
-  
-  // Extract tenant slug (e.g. "brand" from "brand.wisora.com")
+  const currentHost = hostname.split(':')[0];
   const tenantSlug = currentHost.split('.')[0];
 
   if (tenantSlug && tenantSlug !== 'www' && tenantSlug !== 'wisora') {
