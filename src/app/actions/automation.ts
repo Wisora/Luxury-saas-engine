@@ -16,7 +16,7 @@ export async function toggleAutomation(
   const subdomain = formData.get('subdomain') as string;
 
   if (!subdomain) {
-    return { error: 'Tenant subdomain is required.' };
+    return { error: 'Subdomain is required.' };
   }
 
   try {
@@ -26,7 +26,7 @@ export async function toggleAutomation(
     });
 
     if (!tenant) {
-      return { error: `Tenant with subdomain "${subdomain}" not found.` };
+      return { error: `Tenant "${subdomain}" not found.` };
     }
 
     const updated = await prisma.tenant.update({
