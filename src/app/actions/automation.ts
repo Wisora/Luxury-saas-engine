@@ -3,23 +3,46 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
-export async function toggleAutomation(subdomain: string, currentState: boolean) {
+export type AutomationFormState = {
+  error?: string;
+  success?: boolean;
+  isEnabled?: boolean;
+};
+
+export async function toggleAutomation(
+  prevState: AutomationFormState,
+  formData: FormData
+): Promise<AutomationFormState> {
+  const subdomain = formData.get('subdomain') as string;
+
+  if (!subdomain) {
+    return { error: 'Tenant subdomain is required.' };
+  }
+
   try {
-    const updatedTenant = await prisma.tenant.update({
+    const tenant = await prisma.tenant.findUnique({
       where: { subdomain },
-      data: {
-        // Toggle the automation status field
-        isAutomationEnabled: !currentState,
-      },
+      select: { id: true, isAutomationEnabled: true },
     });
 
-    // Revalidate dashboard and onboarding routes so the UI reflects the change immediately
-    revalidatePath(`/tenants/${subdomain}/dashboard`);
-    revalidatePath('/onboarding');
+    if (!tenant) {
+      return { error: `Tenant with subdomain "${subdomain}" not found.` };
+    }
 
-    return { success: true, isEnabled: updatedTenant.isAutomationEnabled };
-  } catch (error) {
-    console.error('Failed to toggle automation state:', error);
-    return { success: false, error: 'Could not update automation setting.' };
+    const updated = await prisma.tenant.update({
+      where: { id: tenant.id },
+      data: { isAutomationEnabled: !tenant.isAutomationEnabled },
+    });
+
+    revalidatePath('/onboarding');
+    revalidatePath(`/tenants/${subdomain}/dashboard`);
+
+    return {
+      success: true,
+      isEnabled: updated.isAutomationEnabled,
+    };
+  } catch (err: unknown) {
+    console.error('Automation toggle error:', err);
+    return { error: 'Failed to update automation state.' };
   }
 }

@@ -3,9 +3,11 @@
 import { useActionState } from 'react';
 import { createOrUpdateTenant, type FormState } from '@/app/actions/tenant';
 import { createProduct, type ProductFormState } from '@/app/actions/product';
+import { toggleAutomation, type AutomationFormState } from '@/app/actions/automation';
 
 const initialTenantState: FormState = {};
 const initialProductState: ProductFormState = {};
+const initialAutomationState: AutomationFormState = {};
 
 export default function OnboardingPage() {
   const [tenantState, tenantAction, tenantPending] = useActionState(
@@ -16,6 +18,11 @@ export default function OnboardingPage() {
   const [productState, productAction, productPending] = useActionState(
     createProduct,
     initialProductState
+  );
+
+  const [automationState, automationAction, automationPending] = useActionState(
+    toggleAutomation,
+    initialAutomationState
   );
 
   return (
@@ -199,6 +206,47 @@ export default function OnboardingPage() {
             className="w-full bg-amber-600 text-white font-medium py-3 rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors"
           >
             {productPending ? 'Publishing Product...' : 'Publish Product to Store'}
+          </button>
+        </form>
+      </div>
+
+      {/* SECTION 3: PHASE 4 AUTOMATION & EXECUTION SCALING */}
+      <div>
+        <h2 className="text-2xl font-bold mb-2">Phase 4: Automation & Execution Scaling</h2>
+        <p className="text-slate-600 mb-6">
+          Toggle automated telemetry scaling and pipeline execution for target tenants.
+        </p>
+
+        {automationState.error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
+            {automationState.error}
+          </div>
+        )}
+        {automationState.success && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-md">
+            Automation state updated to:{' '}
+            <strong>{automationState.isEnabled ? 'ENABLED' : 'DISABLED'}</strong>
+          </div>
+        )}
+
+        <form action={automationAction} className="space-y-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Target Tenant Subdomain</label>
+            <input
+              type="text"
+              name="subdomain"
+              required
+              placeholder="auravelvet"
+              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={automationPending}
+            className="w-full bg-emerald-600 text-white font-medium py-3 rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+          >
+            {automationPending ? 'Updating Automation State...' : 'Toggle Automation Mode'}
           </button>
         </form>
       </div>
