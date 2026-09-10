@@ -13,7 +13,7 @@ const initialState: AutomationFormState = {};
 export default function AutomationToggle({ subdomain, initialEnabled = true }: Props) {
   const [state, formAction, isPending] = useActionState(toggleAutomation, initialState);
 
-  // Determine current active state (falls back to initial prop if form hasn't submitted yet)
+  // Fall back to initialEnabled until action state completes
   const isEnabled = state.isEnabled !== undefined ? state.isEnabled : initialEnabled;
 
   return (
@@ -28,6 +28,7 @@ export default function AutomationToggle({ subdomain, initialEnabled = true }: P
 
         <form action={formAction}>
           <input type="hidden" name="subdomain" value={subdomain} />
+          <input type="hidden" name="currentState" value={String(isEnabled)} />
           <button
             type="submit"
             disabled={isPending}

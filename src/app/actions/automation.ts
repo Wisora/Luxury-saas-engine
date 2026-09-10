@@ -14,6 +14,7 @@ export async function toggleAutomation(
   formData: FormData
 ): Promise<AutomationFormState> {
   const subdomain = formData.get('subdomain') as string;
+  const currentStateStr = formData.get('currentState') as string;
 
   if (!subdomain) {
     return { error: 'Subdomain is required.' };
@@ -29,13 +30,16 @@ export async function toggleAutomation(
       return { error: `Tenant "${subdomain}" not found.` };
     }
 
+    // Determine target boolean value
+    const targetState = currentStateStr !== null ? currentStateStr !== 'true' : !tenant.isAutomationEnabled;
+
     const updated = await prisma.tenant.update({
       where: { id: tenant.id },
-      data: { isAutomationEnabled: !tenant.isAutomationEnabled },
+      data: { isAutomationEnabled: targetState },
     });
 
-    revalidatePath('/onboarding');
-    revalidatePath(`/tenants/${subdomain}/dashboard`);
+    // Invalidate caches
+    revalidatePath('/', 'layout');
 
     return {
       success: true,
