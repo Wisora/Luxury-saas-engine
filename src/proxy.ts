@@ -4,7 +4,17 @@ import type { NextRequest } from 'next/server';
 export function proxy(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
 
-  // 1. Pass through root platform landing page & local development
+  // 1. ALWAYS pass through Next.js Server Actions & Internal System Requests
+  if (
+    request.headers.has('next-action') || 
+    request.headers.has('x-action') ||
+    request.nextUrl.pathname.startsWith('/_next') ||
+    request.nextUrl.pathname.startsWith('/api')
+  ) {
+    return NextResponse.next();
+  }
+
+  // 2. Pass through root platform landing page & local development
   if (
     hostname === 'wisora.com' ||
     hostname.includes('.vercel.app') ||
@@ -14,7 +24,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Client Domain Resolution (Subdomains or Custom Domains)
+  // 3. Client Domain Resolution (Subdomains or Custom Domains)
   const url = request.nextUrl.clone();
   const currentHost = hostname.split(':')[0]; // strip port if present
 

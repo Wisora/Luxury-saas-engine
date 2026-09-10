@@ -1,14 +1,9 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**', // Allows remote images from affiliate networks and external sources
-      },
-    ],
+// next.config.ts
+const nextConfig = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['luxury-saas-engine.vercel.app', '*.wisora.com', 'localhost:3000'],
+    },
   },
 };
-
 export default nextConfig;
