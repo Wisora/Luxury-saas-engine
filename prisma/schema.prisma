@@ -11,17 +11,22 @@ model Tenant {
   name           String
   subdomain      String    @unique
   customDomain   String?   @unique
-  
+
   primaryColor   String    @default("#000000")
   accentColor    String    @default("#D4AF37")
   logoUrl        String?
-  disclosureText String?
+  disclosureText String?   @default("Affiliate Marketplace Network")
 
   cjPublisherId  String?
   rakutenSiteId  String?
 
   products       Product[]
+  clicks         Click[]   // Added back-relation to track tenant telemetry
   createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@index([subdomain])
+  @@index([customDomain])
 }
 
 model Product {
@@ -33,5 +38,24 @@ model Product {
   price        Float
   imageUrl     String
   affiliateUrl String
+  clicks       Click[]  // Added back-relation to track product telemetry
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  @@index([tenantId])
+}
+
+model Click {
+  id        String   @id @default(uuid())
+  tenantId  String
+  productId String
+  userAgent String?
+  referrer  String?
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([productId])
 }

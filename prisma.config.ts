@@ -1,11 +1,10 @@
-import { defineConfig } from '@prisma/config';
-
-// Use DIRECT_URL during migrations/schema updates, otherwise use DATABASE_URL
-const connectionUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+import "dotenv/config";
+import { defineConfig, env } from "prisma/config";
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: "prisma/schema.prisma",
   datasource: {
-    url: connectionUrl,
+    // Prisma CLI (db push/migrate) requires the DIRECT_URL to modify tables
+    url: env("DIRECT_URL"),
   },
 });
