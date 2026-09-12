@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Paystack } from 'paystack-sdk';
+import Paystack from 'paystack-sdk';
 
 const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY || '');
 

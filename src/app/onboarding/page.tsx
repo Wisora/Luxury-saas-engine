@@ -1,252 +1,182 @@
 'use client';
 
-import { useActionState } from 'react';
-import { createOrUpdateTenant, type FormState } from '@/app/actions/tenant';
-import { createProduct, type ProductFormState } from '@/app/actions/product';
-import { toggleAutomation, type AutomationFormState } from '@/app/actions/automation';
+import { useState } from 'react';
 
-const initialTenantState: FormState = {};
-const initialProductState: ProductFormState = {};
-const initialAutomationState: AutomationFormState = {};
+const PRICING_PLANS = [
+  {
+    id: 'starter',
+    name: 'Starter / Trial',
+    price: 0,
+    period: '14 Days Free',
+    description: 'Perfect for testing out your storefront and tracking initial clicks.',
+    planCode: '',
+    features: ['Up to 10 Listed Products', 'Basic Telemetry Analytics', 'Standard Support'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro Creator',
+    price: 299,
+    period: '/month',
+    description: 'For active affiliate creators scaling their recommendations.',
+    planCode: 'PLN_pro_299_zar', // Create this in Paystack Dashboard -> Plans
+    popular: true,
+    features: ['Unlimited Products', 'Full Telemetry & CSV Exports', 'Inline Product Editing', 'Priority Support'],
+  },
+  {
+    id: 'luxe',
+    name: 'Luxe / Agency',
+    price: 799,
+    period: '/month',
+    description: 'For established brands requiring custom domain routing and dedicated analytics.',
+    planCode: 'PLN_luxe_799_zar', // Create this in Paystack Dashboard -> Plans
+    features: ['Everything in Pro', 'Custom Domain Setup', 'Advanced Click Insights', '1-on-1 Onboarding'],
+  },
+];
 
 export default function OnboardingPage() {
-  const [tenantState, tenantAction, tenantPending] = useActionState(
-    createOrUpdateTenant,
-    initialTenantState
-  );
+  const [selectedPlan, setSelectedPlan] = useState('pro');
+  const [subdomain, setSubdomain] = useState('');
+  const [brandName, setBrandName] = useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [productState, productAction, productPending] = useActionState(
-    createProduct,
-    initialProductState
-  );
+  async function handleCreateTenant(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
 
-  const [automationState, automationAction, automationPending] = useActionState(
-    toggleAutomation,
-    initialAutomationState
-  );
+    try {
+      const activePlan = PRICING_PLANS.find((p) => p.id === selectedPlan);
+
+      // 1. If Free/Starter Plan selected, skip payment and redirect to dashboard
+      if (!activePlan || activePlan.price === 0) {
+        window.location.href = `/tenants/${subdomain}/dashboard`;
+        return;
+      }
+
+      // 2. Initialize Paystack Checkout for Paid Plans
+      const res = await fetch('/api/paystack/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          tenantSubdomain: subdomain,
+          amountInZar: activePlan.price,
+          planCode: activePlan.planCode,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'Could not initiate checkout.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An unexpected error occurred during setup.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="max-w-2xl mx-auto py-12 px-4 space-y-10">
-      {/* SECTION 1: TENANT BRANDING */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Aura Luxury Pipeline Onboarding</h1>
-        <p className="text-slate-600 mb-6">
-          Configure tenant branding, palette, and network integration.
-        </p>
+    <div className="min-h-screen bg-slate-900 text-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl font-extrabold text-white">Create Your Brand Storefront</h1>
+          <p className="text-slate-400">Choose a plan and enter your brand details to get started.</p>
+        </div>
 
-        {tenantState.error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
-            {tenantState.error}
-          </div>
-        )}
-        {tenantState.success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-md">
-            Tenant configuration saved successfully!
-          </div>
-        )}
+        {/* Pricing Plan Selector */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+          {PRICING_PLANS.map((plan) => {
+            const isSelected = selectedPlan === plan.id;
+            return (
+              <div
+                key={plan.id}
+                onClick={() => setSelectedPlan(plan.id)}
+                className={`cursor-pointer relative p-6 rounded-2xl border transition-all ${
+                  isSelected
+                    ? 'border-amber-500 bg-slate-800 shadow-lg shadow-amber-500/10 scale-105'
+                    : 'border-slate-800 bg-slate-800/40 hover:border-slate-700'
+                }`}
+              >
+                {plan.popular && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-amber-500 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-full">
+                    Most Popular
+                  </span>
+                )}
+                <h3 className="text-xl font-bold text-white">{plan.name}</h3>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-white">R{plan.price}</span>
+                  <span className="text-slate-400 text-sm">{plan.period}</span>
+                </div>
+                <p className="mt-3 text-xs text-slate-400 leading-relaxed">{plan.description}</p>
+                <ul className="mt-4 space-y-2 border-t border-slate-700/50 pt-4 text-xs text-slate-300">
+                  {plan.features.map((f, idx) => (
+                    <li key={idx} className="flex items-center gap-2">
+                      <span className="text-amber-400 font-bold">✓</span> {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
 
-        <form action={tenantAction} className="space-y-6 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Brand Name</label>
-            <input
-              type="text"
-              name="name"
-              required
-              placeholder="Aura Velvet Boutique"
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Subdomain Slug</label>
-            <div className="flex items-center mt-1">
+        {/* Onboarding Form */}
+        <form onSubmit={handleCreateTenant} className="bg-slate-800/70 border border-slate-700 p-8 rounded-2xl space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-xs font-semibold uppercase text-slate-300 mb-2">
+                Brand / Creator Name
+              </label>
               <input
                 type="text"
-                name="subdomain"
                 required
-                placeholder="auravelvet"
-                className="block w-full rounded-l-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <span className="inline-flex items-center rounded-r-md border border-l-0 border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                .wisora.com
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Primary Color</label>
-              <input
-                type="color"
-                name="primaryColor"
-                defaultValue="#000000"
-                className="mt-1 block w-full h-10 rounded-md border border-slate-300 p-1 cursor-pointer"
+                placeholder="e.g. Luxe Living"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-sm"
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-slate-700">Accent Color</label>
-              <input
-                type="color"
-                name="accentColor"
-                defaultValue="#D4AF37"
-                className="mt-1 block w-full h-10 rounded-md border border-slate-300 p-1 cursor-pointer"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Logo URL</label>
-            <input
-              type="url"
-              name="logoUrl"
-              placeholder="https://images.unsplash.com/photo-..."
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={tenantPending}
-            className="w-full bg-slate-900 text-white font-medium py-3 rounded-md hover:bg-slate-800 disabled:opacity-50 transition-colors"
-          >
-            {tenantPending ? 'Saving Configuration...' : 'Save Tenant Pipeline'}
-          </button>
-        </form>
-      </div>
-
-      {/* SECTION 2: ADD PRODUCT TO STORE */}
-      <div>
-        <h2 className="text-2xl font-bold mb-2">Add Product to Storefront</h2>
-        <p className="text-slate-600 mb-6">
-          Seed luxury products directly into an existing tenant domain.
-        </p>
-
-        {productState.error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
-            {productState.error}
-          </div>
-        )}
-        {productState.success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-md">
-            Product published! Check your storefront to see it live.
-          </div>
-        )}
-
-        <form action={productAction} className="space-y-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Target Tenant Subdomain</label>
-            <input
-              type="text"
-              name="subdomain"
-              required
-              placeholder="auravelvet"
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Product Title</label>
+              <label className="block text-xs font-semibold uppercase text-slate-300 mb-2">
+                Desired Subdomain Slug
+              </label>
               <input
                 type="text"
-                name="title"
                 required
-                placeholder="Velvet Travel Duffel"
-                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Category</label>
-              <input
-                type="text"
-                name="category"
-                placeholder="Luggage & Travel"
-                className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="e.g. luxeliving"
+                value={subdomain}
+                onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Price ($ USD)</label>
+            <label className="block text-xs font-semibold uppercase text-slate-300 mb-2">
+              Billing Email Address
+            </label>
             <input
-              type="number"
-              step="0.01"
-              name="price"
+              type="email"
               required
-              placeholder="350.00"
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Image URL</label>
-            <input
-              type="url"
-              name="imageUrl"
-              required
-              placeholder="https://images.unsplash.com/photo-1553062407-98eeb64c6a62"
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Affiliate Target URL</label>
-            <input
-              type="url"
-              name="affiliateUrl"
-              required
-              placeholder="https://merchant.com/affiliate-link"
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              placeholder="billing@yourbrand.co.za"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-sm"
             />
           </div>
 
           <button
             type="submit"
-            disabled={productPending}
-            className="w-full bg-amber-600 text-white font-medium py-3 rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors"
+            disabled={loading}
+            className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-base transition-colors shadow-lg"
           >
-            {productPending ? 'Publishing Product...' : 'Publish Product to Store'}
-          </button>
-        </form>
-      </div>
-
-      {/* SECTION 3: PHASE 4 AUTOMATION & EXECUTION SCALING */}
-      <div>
-        <h2 className="text-2xl font-bold mb-2">Phase 4: Automation & Execution Scaling</h2>
-        <p className="text-slate-600 mb-6">
-          Toggle automated telemetry scaling and pipeline execution for target tenants.
-        </p>
-
-        {automationState.error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
-            {automationState.error}
-          </div>
-        )}
-        {automationState.success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-md">
-            Automation state updated to:{' '}
-            <strong>{automationState.isEnabled ? 'ENABLED' : 'DISABLED'}</strong>
-          </div>
-        )}
-
-        <form action={automationAction} className="space-y-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Target Tenant Subdomain</label>
-            <input
-              type="text"
-              name="subdomain"
-              required
-              placeholder="auravelvet"
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={automationPending}
-            className="w-full bg-emerald-600 text-white font-medium py-3 rounded-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-          >
-            {automationPending ? 'Updating Automation State...' : 'Toggle Automation Mode'}
+            {loading ? 'Setting Up...' : selectedPlan === 'starter' ? 'Launch Storefront (Free Trial)' : 'Continue to Paystack Checkout ↗'}
           </button>
         </form>
       </div>
