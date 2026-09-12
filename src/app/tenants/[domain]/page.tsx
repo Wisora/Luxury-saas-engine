@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import EditProductModal from '@/components/EditProductModal';
 
 type Props = {
   params: Promise<{ domain: string }>;
@@ -34,7 +35,7 @@ export default async function TenantDashboardPage({ params }: Props) {
       where: { tenantId: tenant.id },
     }),
 
-    // Products ranked by click count
+    // Products ranked by click count (includes affiliateUrl for edit modal)
     prisma.product.findMany({
       where: { tenantId: tenant.id },
       select: {
@@ -42,6 +43,7 @@ export default async function TenantDashboardPage({ params }: Props) {
         title: true,
         category: true,
         price: true,
+        affiliateUrl: true,
         _count: {
           select: { clicks: true },
         },
@@ -51,7 +53,7 @@ export default async function TenantDashboardPage({ params }: Props) {
           _count: 'desc',
         },
       },
-      take: 5,
+      take: 10,
     }),
 
     // Recent telemetry event logs
@@ -71,7 +73,6 @@ export default async function TenantDashboardPage({ params }: Props) {
     }),
   ]);
 
-  const primaryColor = tenant.primaryColor || '#000000';
   const accentColor = tenant.accentColor || '#D4AF37';
 
   return (
@@ -88,7 +89,7 @@ export default async function TenantDashboardPage({ params }: Props) {
             </span>
             <h1 className="text-3xl font-bold mt-1 text-white">{tenant.name}</h1>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {/* CSV Export Endpoint Link */}
             <a
@@ -128,7 +129,7 @@ export default async function TenantDashboardPage({ params }: Props) {
             <div className="text-4xl font-extrabold mt-2 text-amber-400">
               {productsWithClicks[0]?._count.clicks || 0}
             </div>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-slate-500 mt-2 truncate">
               {productsWithClicks[0]?.title || 'No products yet'}
             </p>
           </div>
@@ -136,7 +137,7 @@ export default async function TenantDashboardPage({ params }: Props) {
 
         {/* Analytics Breakdown Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Top Products Table */}
+          {/* Top Products Table with Edit Modal */}
           <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6">
             <h2 className="text-lg font-bold text-white mb-4">Top Performing Products</h2>
             {productsWithClicks.length === 0 ? (
@@ -144,17 +145,30 @@ export default async function TenantDashboardPage({ params }: Props) {
             ) : (
               <div className="divide-y divide-slate-700/50">
                 {productsWithClicks.map((item) => (
-                  <div key={item.id} className="py-3 flex justify-between items-center text-sm">
-                    <div>
-                      <p className="font-semibold text-slate-200">{item.title}</p>
+                  <div key={item.id} className="py-3 flex justify-between items-center text-sm gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-200 truncate">{item.title}</p>
                       <p className="text-xs text-slate-400">
                         {item.category} • ${item.price.toFixed(2)}
                       </p>
                     </div>
-                    <div className="text-right">
+
+                    <div className="flex items-center gap-3">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                         {item._count.clicks} clicks
                       </span>
+
+                      {/* Edit Product Action Modal */}
+                      <EditProductModal
+                        product={{
+                          id: item.id,
+                          title: item.title,
+                          price: item.price,
+                          category: item.category,
+                          affiliateUrl: item.affiliateUrl,
+                          tenantSubdomain: tenant.subdomain,
+                        }}
+                      />
                     </div>
                   </div>
                 ))}
