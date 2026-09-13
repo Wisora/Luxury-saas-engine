@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -18,6 +18,7 @@ import {
   FileText,
   Lock,
   LayoutDashboard,
+  ArrowRight,
 } from "lucide-react";
 
 import { LuxuryItem, PipelineLog } from "../types";
@@ -312,6 +313,11 @@ export default function App() {
     playLuxuryTone("click");
   };
 
+  const handleNavigateOnboarding = () => {
+    playLuxuryTone("click");
+    window.location.href = "/onboarding";
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-amber-100 flex flex-col font-sans selection:bg-amber-500/20 selection:text-amber-300 antialiased">
       <AffiliateBanner />
@@ -380,7 +386,15 @@ export default function App() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full bg-gray-900 border border-gray-800">
+          <button
+            onClick={handleNavigateOnboarding}
+            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-1.5 rounded-lg transition-all duration-300 shadow-md shadow-amber-500/10 cursor-pointer"
+          >
+            <span>Create Storefront</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1 rounded-full bg-gray-900 border border-gray-800">
             <span
               className={`h-2 w-2 rounded-full ${
                 wsStatus === "connected"
