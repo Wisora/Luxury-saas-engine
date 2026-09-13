@@ -12,6 +12,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "@react-email/components": "^1.0.12",
     "@supabase/supabase-js": "^2.116.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.4.7",
@@ -21,6 +22,7 @@
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "resend": "^6.28.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
