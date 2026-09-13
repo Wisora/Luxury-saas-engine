@@ -1,26 +1,23 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import EditProductModal from '@/components/EditProductModal';
+import Image from 'next/image';
 
 type Props = {
   params: Promise<{ domain: string }>;
 };
 
-export default async function TenantDashboardPage({ params }: Props) {
+export default async function TenantPublicPage({ params }: Props) {
   const { domain } = await params;
 
-  // 1. Fetch tenant metadata
+  // 1. Fetch tenant data along with their active products
   const tenant = await prisma.tenant.findFirst({
     where: {
       OR: [{ subdomain: domain }, { customDomain: domain }],
     },
-    select: {
-      id: true,
-      name: true,
-      subdomain: true,
-      primaryColor: true,
-      accentColor: true,
+    include: {
+      products: {
+        orderBy: { createdAt: 'desc' },
+      },
     },
   });
 
@@ -28,181 +25,104 @@ export default async function TenantDashboardPage({ params }: Props) {
     notFound();
   }
 
-  // 2. Fetch aggregate metrics concurrently
-  const [totalClicks, productsWithClicks, recentClicks] = await Promise.all([
-    // Total clicks logged
-    prisma.click.count({
-      where: { tenantId: tenant.id },
-    }),
-
-    // Products ranked by click count (includes affiliateUrl for edit modal)
-    prisma.product.findMany({
-      where: { tenantId: tenant.id },
-      select: {
-        id: true,
-        title: true,
-        category: true,
-        price: true,
-        affiliateUrl: true,
-        _count: {
-          select: { clicks: true },
-        },
-      },
-      orderBy: {
-        clicks: {
-          _count: 'desc',
-        },
-      },
-      take: 10,
-    }),
-
-    // Recent telemetry event logs
-    prisma.click.findMany({
-      where: { tenantId: tenant.id },
-      select: {
-        id: true,
-        userAgent: true,
-        referrer: true,
-        createdAt: true,
-        product: {
-          select: { title: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    }),
-  ]);
-
   const accentColor = tenant.accentColor || '#D4AF37';
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-6 md:p-10">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header with CSV Export Action */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-6 gap-4">
-          <div>
-            <span
-              className="text-xs font-semibold uppercase tracking-widest"
-              style={{ color: accentColor }}
-            >
-              Telemetry & Analytics Dashboard
-            </span>
-            <h1 className="text-3xl font-bold mt-1 text-white">{tenant.name}</h1>
+    <div className="min-h-screen bg-[#0B0F17] text-slate-100 py-16 px-4 sm:px-8">
+      <div className="max-w-7xl mx-auto space-y-16">
+        
+        {/* Editorial Header Section */}
+        <header className="text-center space-y-4 max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 border border-white/10 text-amber-400 text-[10px] font-semibold tracking-[0.25em] uppercase">
+            <span>Curated Lookbook</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* CSV Export Endpoint Link */}
-            <a
-              href={`/api/export/csv?subdomain=${tenant.subdomain}`}
-              download
-              className="px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition-colors shadow-sm"
-            >
-              Export Telemetry CSV
-            </a>
+          <h1 className="font-serif text-4xl sm:text-6xl font-normal tracking-tight text-white">
+            {tenant.name.toUpperCase()}
+          </h1>
 
-            <Link
-              href={`/tenants/${tenant.subdomain}`}
-              target="_blank"
-              className="px-4 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors border border-slate-700"
-            >
-              View Live Storefront ↗
-            </Link>
+          <p className="text-slate-400 text-sm font-light tracking-wide leading-relaxed">
+            An exclusive selection of personal recommendations, essential wardrobe staples, and luxury finds.
+          </p>
+
+          <div 
+            className="w-12 h-[1px] mx-auto mt-6" 
+            style={{ backgroundColor: accentColor }} 
+          />
+        </header>
+
+        {/* Product Catalog Grid */}
+        {tenant.products.length === 0 ? (
+          <div className="text-center py-20 bg-slate-900/30 border border-white/5 rounded-2xl max-w-lg mx-auto">
+            <p className="text-slate-400 font-serif text-lg">No curated items available yet.</p>
+            <p className="text-xs text-slate-600 mt-1">Check back soon for new additions.</p>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {tenant.products.map((product) => (
+              <div
+                key={product.id}
+                className="group relative flex flex-col bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden hover:border-amber-500/40 transition-all duration-500 shadow-2xl"
+              >
+                {/* 3:4 Portrait Image Container */}
+                <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-950">
+                  <Image
+                    src={product.imageUrl || '/placeholder.jpg'}
+                    alt={product.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                  />
 
-        {/* KPI Metric Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-sm">
-            <span className="text-slate-400 text-sm font-medium">Total Telemetry Clicks</span>
-            <div className="text-4xl font-extrabold mt-2 text-white">{totalClicks}</div>
-            <p className="text-xs text-slate-500 mt-2">All-time outbound affiliate redirects</p>
-          </div>
+                  {/* Dark Vignette Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F17] via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-500" />
 
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-sm">
-            <span className="text-slate-400 text-sm font-medium">Active Catalog Products</span>
-            <div className="text-4xl font-extrabold mt-2 text-white">{productsWithClicks.length}</div>
-            <p className="text-xs text-slate-500 mt-2">Listed luxury items in catalog</p>
-          </div>
-
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-sm">
-            <span className="text-slate-400 text-sm font-medium">Top Product Clicks</span>
-            <div className="text-4xl font-extrabold mt-2 text-amber-400">
-              {productsWithClicks[0]?._count.clicks || 0}
-            </div>
-            <p className="text-xs text-slate-500 mt-2 truncate">
-              {productsWithClicks[0]?.title || 'No products yet'}
-            </p>
-          </div>
-        </div>
-
-        {/* Analytics Breakdown Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Top Products Table with Edit Modal */}
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Top Performing Products</h2>
-            {productsWithClicks.length === 0 ? (
-              <p className="text-slate-500 text-sm">No items in store catalog yet.</p>
-            ) : (
-              <div className="divide-y divide-slate-700/50">
-                {productsWithClicks.map((item) => (
-                  <div key={item.id} className="py-3 flex justify-between items-center text-sm gap-4">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-200 truncate">{item.title}</p>
-                      <p className="text-xs text-slate-400">
-                        {item.category} • ${item.price.toFixed(2)}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        {item._count.clicks} clicks
-                      </span>
-
-                      {/* Edit Product Action Modal */}
-                      <EditProductModal
-                        product={{
-                          id: item.id,
-                          title: item.title,
-                          price: item.price,
-                          category: item.category,
-                          affiliateUrl: item.affiliateUrl,
-                          tenantSubdomain: tenant.subdomain,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Recent Event Log Table */}
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Recent Click Events</h2>
-            {recentClicks.length === 0 ? (
-              <p className="text-slate-500 text-sm">No telemetry clicks recorded yet.</p>
-            ) : (
-              <div className="divide-y divide-slate-700/50">
-                {recentClicks.map((log) => (
-                  <div key={log.id} className="py-3 text-xs flex justify-between items-center">
-                    <div>
-                      <p className="font-medium text-slate-300">{log.product.title}</p>
-                      <p className="text-slate-500 truncate max-w-xs">
-                        {log.referrer ? `Ref: ${log.referrer}` : 'Direct access'}
-                      </p>
-                    </div>
-                    <span className="text-slate-400 font-mono">
-                      {new Date(log.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                  {/* Category Pill */}
+                  {product.category && (
+                    <span className="absolute top-4 left-4 bg-slate-950/80 backdrop-blur-md border border-white/10 text-amber-400 text-[10px] font-medium tracking-widest uppercase px-3 py-1 rounded-full">
+                      {product.category}
                     </span>
+                  )}
+                </div>
+
+                {/* Details Footer */}
+                <div className="flex flex-col flex-1 p-6 justify-between space-y-4">
+                  <div>
+                    <h3 className="font-serif text-2xl font-normal text-white group-hover:text-amber-200 transition-colors duration-300 line-clamp-1">
+                      {product.title}
+                    </h3>
                   </div>
-                ))}
+
+                  {/* Price & Telemetry Action Link */}
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-slate-300 font-mono text-sm">
+                      ${product.price.toFixed(2)}
+                    </span>
+
+                    {/* Outbound Telemetry Link */}
+                    <a
+                      href={`/api/telemetry/click?productId=${product.id}&tenantId=${tenant.id}&url=${encodeURIComponent(product.affiliateUrl)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest text-amber-400 hover:text-amber-300 uppercase transition-all duration-300 group/btn"
+                    >
+                      <span>Shop Feature</span>
+                      <span className="transform group-hover/btn:translate-x-1 transition-transform duration-300">
+                        →
+                      </span>
+                    </a>
+                  </div>
+                </div>
               </div>
-            )}
+            ))}
           </div>
-        </div>
+        )}
+
+        {/* Brand Footer Signature */}
+        <footer className="text-center pt-12 border-t border-white/5 text-xs text-slate-600 font-light tracking-widest uppercase">
+          Powered by Aura Luxury Pipeline
+        </footer>
+
       </div>
     </div>
   );
