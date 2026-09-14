@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { createClient, RealtimeChannel } from "@supabase/supabase-js";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Compass,
@@ -19,6 +20,11 @@ import {
   Lock,
   LayoutDashboard,
   ArrowRight,
+  Menu,
+  X,
+  RefreshCw,
+  Server,
+  Activity,
 } from "lucide-react";
 
 import { LuxuryItem, PipelineLog } from "../types";
@@ -31,7 +37,6 @@ import { TermsOfService } from "../components/TermsOfService";
 import { AffiliateBanner } from "../components/AffiliateBanner";
 import { DomainSettingsCard } from "../components/DomainSettingsCard";
 
-// Initialize Supabase Client safely
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase =
@@ -48,12 +53,38 @@ interface TelemetryPayload {
   status?: "info" | "success" | "warning" | "error";
 }
 
+const PIPELINE_PHASES = [
+  { id: 1, label: "Market Scanner", icon: Compass, sub: "Phase 1: Collectors" },
+  { id: 2, label: "Governance & Safety", icon: ShieldCheck, sub: "Phase 2: Trust Guard" },
+  { id: 3, label: "Optimization Metrics", icon: BarChart3, sub: "Phase 3: Conversions" },
+  { id: 4, label: "Automation Engine", icon: Zap, sub: "Phase 4: CDN & Caches" },
+  { id: 5, label: "Revenue Drops", icon: Coins, sub: "Phase 5: VIP Drops" },
+  { id: 6, label: "Future Provisions", icon: Sparkles, sub: "Phase 6: Voice & AR" },
+  { id: 7, label: "Investor Portal", icon: LineChart, sub: "Phase 7: Strategy Hub" },
+];
+
 export default function App() {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<ActiveView>("dashboard");
   const [currentPhase, setCurrentPhase] = useState<number>(1);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">(
+    () => (supabase ? "connecting" : "disconnected")
+  );
+
+  const currentPhaseRef = useRef<number>(currentPhase);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const terminalEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    currentPhaseRef.current = currentPhase;
+  }, [currentPhase]);
+
   const [items, setItems] = useState<LuxuryItem[]>(() =>
     Array.isArray(INITIAL_LUXURY_ITEMS) ? INITIAL_LUXURY_ITEMS : []
   );
+
   const [logs, setLogs] = useState<PipelineLog[]>(() =>
     Array.isArray(INITIAL_LOGS)
       ? INITIAL_LOGS.map((log) => ({
@@ -73,14 +104,12 @@ export default function App() {
     roi: 8.2,
   });
 
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  useEffect(() => {
+    if (activeView === "dashboard") {
+      terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs, activeView]);
 
-  // Initialize status directly to avoid synchronous setState inside useEffect body
-  const [wsStatus, setWsStatus] = useState<
-    "connected" | "connecting" | "disconnected"
-  >(() => (supabase ? "connecting" : "disconnected"));
-
-  // Fetch initial data from Supabase DB
   useEffect(() => {
     let isMounted = true;
     const fetchInitialData = async () => {
@@ -96,7 +125,7 @@ export default function App() {
           setItems(data as LuxuryItem[]);
         }
       } catch {
-        // Retain initial mock data fallback
+        // Fallback to initial mock state gracefully
       }
     };
 
@@ -110,54 +139,62 @@ export default function App() {
     (type: "nav" | "success" | "warn" | "click") => {
       if (!soundEnabled) return;
       try {
-        const AudioContextClass =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext })
-            .webkitAudioContext;
-        if (!AudioContextClass) return;
-        const ctx = new AudioContextClass();
+        if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+          const AudioContextClass =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtxRef.current = new AudioContextClass();
+          }
+        }
+
+        const ctx = audioCtxRef.current;
+        if (!ctx) return;
+        if (ctx.state === "suspended") {
+          ctx.resume();
+        }
+
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
+        const now = ctx.currentTime;
+
         if (type === "nav") {
-          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.setValueAtTime(587.33, now);
           osc.type = "triangle";
-          gain.gain.setValueAtTime(0.04, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.35);
+          gain.gain.setValueAtTime(0.04, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.35);
         } else if (type === "success") {
-          osc.frequency.setValueAtTime(659.25, ctx.currentTime);
-          osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.08);
+          osc.frequency.setValueAtTime(659.25, now);
+          osc.frequency.setValueAtTime(880.0, now + 0.08);
           osc.type = "sine";
-          gain.gain.setValueAtTime(0.05, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.55);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.55);
         } else if (type === "click") {
-          osc.frequency.setValueAtTime(440.0, ctx.currentTime);
+          osc.frequency.setValueAtTime(440.0, now);
           osc.type = "triangle";
-          gain.gain.setValueAtTime(0.03, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(
-            0.0001,
-            ctx.currentTime + 0.15
-          );
-          osc.start();
-          osc.stop(ctx.currentTime + 0.18);
+          gain.gain.setValueAtTime(0.03, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.18);
         } else if (type === "warn") {
-          osc.frequency.setValueAtTime(220.0, ctx.currentTime);
-          osc.frequency.setValueAtTime(196.0, ctx.currentTime + 0.1);
+          osc.frequency.setValueAtTime(220.0, now);
+          osc.frequency.setValueAtTime(196.0, now + 0.1);
           osc.type = "sawtooth";
-          gain.gain.setValueAtTime(0.02, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.45);
+          gain.gain.setValueAtTime(0.02, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+          osc.start(now);
+          osc.stop(now + 0.45);
         }
       } catch {
-        // Silently skip audio issues
+        // Ignore audio policy restrictions
       }
     },
     [soundEnabled]
@@ -170,14 +207,12 @@ export default function App() {
       message: string,
       status: "info" | "success" | "warning" | "error"
     ) => {
-      const safeStatus = ["info", "success", "warning", "error"].includes(
-        status
-      )
+      const safeStatus = ["info", "success", "warning", "error"].includes(status)
         ? status
         : "info";
 
       const newLog: PipelineLog = {
-        id: `${Date.now()}-${Math.random()}`,
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         timestamp: new Date().toTimeString().split(" ")[0],
         phase: Number(phase) || 1,
         agent: String(agent || "Telemetry Core"),
@@ -185,62 +220,73 @@ export default function App() {
         status: safeStatus,
       };
 
-      setLogs((prev) =>
-        [newLog, ...(Array.isArray(prev) ? prev : [])].slice(0, 50)
-      );
+      setLogs((prev) => [newLog, ...(Array.isArray(prev) ? prev : [])].slice(0, 50));
 
       if (safeStatus === "success") playLuxuryTone("success");
-      else if (safeStatus === "warning" || safeStatus === "error")
-        playLuxuryTone("warn");
+      else if (safeStatus === "warning" || safeStatus === "error") playLuxuryTone("warn");
       else playLuxuryTone("click");
     },
     [playLuxuryTone]
   );
 
-  // Native Supabase Realtime Connection Handler
+  const addLogRef = useRef(addLog);
+  useEffect(() => {
+    addLogRef.current = addLog;
+  }, [addLog]);
+
   useEffect(() => {
     if (!supabase) return;
 
-    const channel = supabase
-      .channel("pipeline-telemetry")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "pipeline_logs" },
-        (payload) => {
-          const logData = payload.new as TelemetryPayload | null;
-          if (logData) {
-            addLog(
-              logData.phase || currentPhase,
-              logData.agent || "Supabase DB Stream",
-              logData.message || "Database state updated",
-              logData.status || "info"
+    let channel: RealtimeChannel | null = null;
+
+    try {
+      channel = supabase
+        .channel("pipeline-telemetry")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "pipeline_logs" },
+          (payload) => {
+            const logData = payload.new as TelemetryPayload | null;
+            if (logData) {
+              addLogRef.current(
+                logData.phase || currentPhaseRef.current,
+                logData.agent || "Supabase DB Stream",
+                logData.message || "Database state updated",
+                logData.status || "info"
+              );
+            }
+          }
+        )
+        .on("broadcast", { event: "telemetry" }, (payload) => {
+          const data = payload.payload as TelemetryPayload | null;
+          if (data) {
+            addLogRef.current(
+              data.phase || currentPhaseRef.current,
+              data.agent || "Supabase Broadcast",
+              data.message || "Realtime broadcast received",
+              data.status || "info"
             );
           }
-        }
-      )
-      .on("broadcast", { event: "telemetry" }, (payload) => {
-        const data = payload.payload as TelemetryPayload | null;
-        if (data) {
-          addLog(
-            data.phase || currentPhase,
-            data.agent || "Supabase Broadcast",
-            data.message || "Realtime broadcast received",
-            data.status || "info"
-          );
-        }
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          setWsStatus("connected");
-        } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
-          setWsStatus("disconnected");
-        }
+        })
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            setWsStatus("connected");
+          } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+            setWsStatus("disconnected");
+          }
+        });
+    } catch {
+      queueMicrotask(() => {
+        setWsStatus("disconnected");
       });
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [currentPhase, addLog]);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -250,83 +296,61 @@ export default function App() {
         msg: string;
         type: "info" | "success" | "warning" | "error";
       }> = [
-        {
-          name: "Farfetch Collector",
-          phase: 1,
-          msg: "Polled exotic accessories index. Cache delta: +0.4%.",
-          type: "info",
-        },
-        {
-          name: "Chrono24 Collector",
-          phase: 1,
-          msg: "Audited regional pricing indices. 4 active items verified.",
-          type: "success",
-        },
-        {
-          name: "1stDibs Collector",
-          phase: 1,
-          msg: "Sync completed for contemporary art catalog feeds.",
-          type: "info",
-        },
-        {
-          name: "Sothebys Realty",
-          phase: 1,
-          msg: "Parsed Duplex listing maps. Structural deeds authenticated.",
-          type: "info",
-        },
-        {
-          name: "Data Validation Agent",
-          phase: 2,
-          msg: "Running automatic SHA-256 validation scans...",
-          type: "success",
-        },
-        {
-          name: "Caching Agent",
-          phase: 4,
-          msg: "Prerendered 5 fresh catalog sheets to edge servers.",
-          type: "info",
-        },
+        { name: "Farfetch Collector", phase: 1, msg: "Polled exotic accessories index. Cache delta: +0.4%.", type: "info" },
+        { name: "Chrono24 Collector", phase: 1, msg: "Audited regional pricing indices. 4 active items verified.", type: "success" },
+        { name: "1stDibs Collector", phase: 1, msg: "Sync completed for contemporary art catalog feeds.", type: "info" },
+        { name: "Sothebys Realty", phase: 1, msg: "Parsed Duplex listing maps. Structural deeds authenticated.", type: "info" },
+        { name: "Data Validation Agent", phase: 2, msg: "Running automatic SHA-256 validation scans...", type: "success" },
+        { name: "Caching Agent", phase: 4, msg: "Prerendered 5 fresh catalog sheets to edge servers.", type: "info" },
       ];
 
       const item = collectors[Math.floor(Math.random() * collectors.length)];
 
       setSystemMetrics((prev) => ({
         ...prev,
-        itemsProcessed:
-          (prev.itemsProcessed || 0) + Math.floor(Math.random() * 2) + 1,
+        itemsProcessed: (prev.itemsProcessed || 0) + Math.floor(Math.random() * 2) + 1,
       }));
 
-      addLog(item.phase, item.name, item.msg, item.type);
+      addLogRef.current(item.phase, item.name, item.msg, item.type);
     }, 15000);
 
     return () => clearInterval(timer);
-  }, [addLog]);
+  }, []);
 
   const handleSelectPhase = (phase: number) => {
     setCurrentPhase(phase);
     setActiveView("dashboard");
+    setMobileMenuOpen(false);
     playLuxuryTone("nav");
   };
 
   const handleViewChange = (view: ActiveView) => {
     setActiveView(view);
+    setMobileMenuOpen(false);
     playLuxuryTone("click");
   };
 
   const handleNavigateOnboarding = () => {
     playLuxuryTone("click");
-    window.location.href = "/onboarding";
+    router.push("/onboarding");
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+    playLuxuryTone("click");
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-amber-100 flex flex-col font-sans selection:bg-amber-500/20 selection:text-amber-300 antialiased">
       <AffiliateBanner />
 
+      {/* Header Bar */}
       <header className="border-b border-gray-800/80 bg-[#0f141d]/90 backdrop-blur-md sticky top-0 z-50 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => handleViewChange("dashboard")}
-            className="flex items-center gap-3 text-left focus:outline-none group"
+            className="flex items-center gap-3 text-left focus:outline-none focus:ring-2 focus:ring-amber-500/40 rounded-lg group"
+            aria-label="Aura Orchestrator Home"
           >
             <div className="h-9 w-9 bg-gradient-to-tr from-amber-600 to-amber-400 rounded-lg flex items-center justify-center shadow-lg relative overflow-hidden group-hover:scale-105 transition-transform">
               <span className="font-serif font-black text-black text-lg tracking-tighter">
@@ -349,7 +373,8 @@ export default function App() {
           </button>
         </div>
 
-        <nav className="hidden md:flex items-center gap-3 text-xs font-mono">
+        {/* Navigation */}
+        <nav className="hidden md:flex items-center gap-2 text-xs font-mono" aria-label="Main Navigation">
           <button
             onClick={() => handleViewChange("dashboard")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
@@ -385,12 +410,14 @@ export default function App() {
           </button>
         </nav>
 
-        <div className="flex items-center gap-3">
+        {/* Actions */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <button
             onClick={handleNavigateOnboarding}
-            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-1.5 rounded-lg transition-all duration-300 shadow-md shadow-amber-500/10 cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-950 bg-amber-400 hover:bg-amber-300 active:scale-95 px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-lg transition-all duration-200 shadow-md shadow-amber-500/10 cursor-pointer"
           >
-            <span>Create Storefront</span>
+            <span className="hidden xs:inline">Create Storefront</span>
+            <span className="xs:hidden">Create</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
 
@@ -405,18 +432,20 @@ export default function App() {
               }`}
             />
             <span className="text-gray-400 uppercase">
-              {wsStatus === "connected" ? "SUPABASE REALTIME" : wsStatus}
+              {wsStatus === "connected" ? "REALTIME LIVE" : wsStatus}
             </span>
           </div>
 
           <button
             onClick={() => {
-              setSoundEnabled(!soundEnabled);
-              if (!soundEnabled) {
+              const nextState = !soundEnabled;
+              setSoundEnabled(nextState);
+              if (nextState) {
                 setTimeout(() => playLuxuryTone("success"), 100);
               }
             }}
-            className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
+            aria-label={soundEnabled ? "Mute chimes" : "Enable chimes"}
+            className={`flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full border transition-all cursor-pointer ${
               soundEnabled
                 ? "bg-amber-400/10 border-amber-400 text-amber-300"
                 : "bg-gray-900 border-gray-800 text-gray-500 hover:text-gray-400 hover:border-gray-700"
@@ -435,14 +464,64 @@ export default function App() {
             )}
           </button>
 
-          <div className="hidden lg:flex items-center gap-2 border-l border-gray-800 pl-4 text-xs font-mono">
+          <div className="hidden lg:flex items-center gap-2 border-l border-gray-800 pl-3 text-xs font-mono">
             <UserCheck className="w-4 h-4 text-amber-400" />
-            <span className="text-gray-400">
-              Operator: craig71abels@gmail.com
+            <span className="text-gray-400 truncate max-w-[120px] xl:max-w-none">
+              {process.env.NEXT_PUBLIC_OPERATOR_EMAIL || "System Administrator"}
             </span>
           </div>
+
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-1.5 rounded-lg border border-gray-800 bg-gray-900 text-gray-400 hover:text-white"
+            aria-label="Toggle Navigation Menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </header>
+
+      {/* Mobile Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="md:hidden border-b border-gray-800 bg-[#0b0e14] px-4 py-3 space-y-3 font-mono text-xs overflow-hidden"
+          >
+            <div className="flex flex-col space-y-1">
+              <button
+                onClick={() => handleViewChange("dashboard")}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                  activeView === "dashboard" ? "bg-amber-500/10 text-amber-300" : "text-gray-400"
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard Console</span>
+              </button>
+              <button
+                onClick={() => handleViewChange("privacy")}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                  activeView === "privacy" ? "bg-amber-500/10 text-amber-300" : "text-gray-400"
+                }`}
+              >
+                <Lock className="w-4 h-4" />
+                <span>Privacy Statement</span>
+              </button>
+              <button
+                onClick={() => handleViewChange("terms")}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                  activeView === "terms" ? "bg-amber-500/10 text-amber-300" : "text-gray-400"
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Terms of Service</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
         {activeView === "privacy" && <PrivacyPolicy />}
@@ -461,66 +540,26 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               <div className="lg:col-span-1 space-y-4">
                 <div className="bg-[#0f141d] border border-gray-800/60 rounded-xl p-4 shadow-md">
-                  <h3 className="text-xs font-mono tracking-wider text-amber-500 uppercase mb-3">
-                    Pipeline Navigation
-                  </h3>
+                  <h2 className="text-xs font-mono tracking-wider text-amber-500 uppercase mb-3 flex items-center justify-between">
+                    <span>Pipeline Navigation</span>
+                    <Activity className="w-3.5 h-3.5 text-gray-500" />
+                  </h2>
 
-                  <div className="space-y-1.5">
-                    {[
-                      {
-                        id: 1,
-                        label: "Market Scanner",
-                        icon: Compass,
-                        sub: "Phase 1: Collectors",
-                      },
-                      {
-                        id: 2,
-                        label: "Governance & Safety",
-                        icon: ShieldCheck,
-                        sub: "Phase 2: Trust Guard",
-                      },
-                      {
-                        id: 3,
-                        label: "Optimization Metrics",
-                        icon: BarChart3,
-                        sub: "Phase 3: Conversions",
-                      },
-                      {
-                        id: 4,
-                        label: "Automation Engine",
-                        icon: Zap,
-                        sub: "Phase 4: CDN & Caches",
-                      },
-                      {
-                        id: 5,
-                        label: "Revenue Drops",
-                        icon: Coins,
-                        sub: "Phase 5: VIP Drops",
-                      },
-                      {
-                        id: 6,
-                        label: "Future Provisions",
-                        icon: Sparkles,
-                        sub: "Phase 6: Voice & AR",
-                      },
-                      {
-                        id: 7,
-                        label: "Investor Portal",
-                        icon: LineChart,
-                        sub: "Phase 7: Strategy Hub",
-                      },
-                    ].map((phase) => {
+                  <div className="space-y-1.5" role="tablist">
+                    {PIPELINE_PHASES.map((phase) => {
                       const Icon = phase.icon;
                       const isSelected = currentPhase === phase.id;
 
                       return (
                         <button
                           key={phase.id}
+                          role="tab"
+                          aria-selected={isSelected}
                           onClick={() => handleSelectPhase(phase.id)}
                           className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                             isSelected
-                              ? "bg-amber-500/10 border-amber-400 text-white shadow-sm"
-                              : "bg-gray-900/10 border-transparent hover:bg-gray-900/30 hover:border-gray-800 text-gray-400"
+                              ? "bg-amber-500/10 border-amber-400 text-white shadow-sm ring-1 ring-amber-400/20"
+                              : "bg-gray-900/10 border-transparent hover:bg-gray-900/40 hover:border-gray-800 text-gray-400"
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -554,12 +593,16 @@ export default function App() {
                 </div>
 
                 <div className="bg-[#0f141d] border border-gray-800/60 rounded-xl p-4 shadow-md text-xs font-mono text-gray-400 space-y-2">
-                  <div className="flex justify-between border-b border-gray-800 pb-1.5">
+                  <div className="flex items-center gap-1.5 text-gray-300 font-semibold mb-2">
+                    <Server className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Diagnostics</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-800/80 pb-1.5">
                     <span>Active Channels:</span>
                     <strong className="text-white">5 / 5 live</strong>
                   </div>
-                  <div className="flex justify-between border-b border-gray-800 pb-1.5">
-                    <span>Active Server Nodes:</span>
+                  <div className="flex justify-between border-b border-gray-800/80 pb-1.5">
+                    <span>Server Nodes:</span>
                     <strong className="text-emerald-400">
                       {systemMetrics?.activeCollectors ?? 3} scaled
                     </strong>
@@ -578,10 +621,10 @@ export default function App() {
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={currentPhase}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.18 }}
                     >
                       <PhasePanel
                         phaseId={currentPhase}
@@ -610,23 +653,33 @@ export default function App() {
                         Live Pipeline Telemetry Output
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          wsStatus === "connected"
-                            ? "bg-emerald-500 animate-pulse"
-                            : "bg-amber-500"
-                        }`}
-                      />
-                      <span className="text-[10px] font-mono text-gray-500">
-                        Supabase Engine
-                      </span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={clearLogs}
+                        className="text-[10px] font-mono text-gray-500 hover:text-amber-400 transition-colors flex items-center gap-1"
+                        title="Clear console logs"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Clear</span>
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            wsStatus === "connected"
+                              ? "bg-emerald-500 animate-pulse"
+                              : "bg-amber-500"
+                          }`}
+                        />
+                        <span className="text-[10px] font-mono text-gray-500">
+                          Supabase Engine
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-4 bg-black/60 font-mono text-[11px] h-36 overflow-y-auto space-y-2.5 scrollbar-thin">
+                  <div className="p-4 bg-black/60 font-mono text-[11px] h-44 overflow-y-auto space-y-2.5 scrollbar-thin">
                     {!Array.isArray(logs) || logs.length === 0 ? (
-                      <div className="text-gray-600 text-center py-4">
+                      <div className="text-gray-600 text-center py-8">
                         No telemetry logs recorded. Scan a market.
                       </div>
                     ) : (
@@ -648,12 +701,13 @@ export default function App() {
                           >
                             P{log.phase} - {log.agent}
                           </span>
-                          <span className="text-gray-300 wrap-break-word flex-1 min-w-0">
+                          <span className="text-gray-300 break-words flex-1 min-w-0">
                             {log.message}
                           </span>
                         </div>
                       ))
                     )}
+                    <div ref={terminalEndRef} />
                   </div>
                 </div>
               </div>
@@ -664,8 +718,7 @@ export default function App() {
 
       <footer className="border-t border-gray-900/80 bg-[#0f141d]/20 py-6 mt-12 px-6 text-center text-xs font-mono text-gray-600 space-y-2">
         <div>
-          Aura Luxury Pipeline &copy; 2026 Wisora Organization. All rights
-          reserved.
+          Aura Luxury Pipeline &copy; 2026 Wisora Organization. All rights reserved.
         </div>
         <div className="flex justify-center space-x-6">
           <button

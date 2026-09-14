@@ -1,3 +1,5 @@
+// types.ts
+
 export interface LuxuryItem {
   id: string;
   title: string;
