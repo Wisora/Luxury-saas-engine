@@ -9,7 +9,6 @@ type Props = {
 export default async function TenantPublicPage({ params }: Props) {
   const { domain } = await params;
 
-  // 1. Fetch tenant data along with their active products
   const tenant = await prisma.tenant.findFirst({
     where: {
       OR: [{ subdomain: domain }, { customDomain: domain }],
@@ -96,12 +95,12 @@ export default async function TenantPublicPage({ params }: Props) {
                   {/* Price & Telemetry Action Link */}
                   <div className="pt-4 border-t border-white/5 flex items-center justify-between">
                     <span className="text-slate-300 font-mono text-sm">
-                      ${product.price.toFixed(2)}
+                      ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
                     </span>
 
                     {/* Outbound Telemetry Link */}
                     <a
-                      href={`/api/telemetry/click?productId=${product.id}&tenantId=${tenant.id}&url=${encodeURIComponent(product.affiliateUrl)}`}
+                      href={`/api/telemetry/click?productId=${product.id}&tenantId=${tenant.id}&url=${encodeURIComponent(product.affiliateUrl || '#')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest text-amber-400 hover:text-amber-300 uppercase transition-all duration-300 group/btn"
