@@ -1,38 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const productId = searchParams.get('productId');
 
-  if (!productId) {
-    return NextResponse.json({ error: 'Missing productId parameter' }, { status: 400 });
+  const productId = searchParams.get("productId");
+  const tenantId = searchParams.get("tenantId");
+  const rawTargetUrl = searchParams.get("url");
+
+  // Fallback destination if no target URL is provided
+  const targetUrl = rawTargetUrl ? decodeURIComponent(rawTargetUrl) : "/";
+
+  // Helper function to safely handle external vs internal redirects
+  const getRedirectResponse = (url: string) => {
+    try {
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        return NextResponse.redirect(url);
+      }
+      return NextResponse.redirect(new URL(url, request.url));
+    } catch {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  };
+
+  if (!productId || !tenantId) {
+    return getRedirectResponse(targetUrl);
   }
 
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true, tenantId: true, affiliateUrl: true },
-    });
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const referrer = request.headers.get("referer") || "direct";
 
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-
-    // Record click telemetry in Supabase
+    // Matching schema model: Click -> prisma.click
     await prisma.click.create({
       data: {
-        tenantId: product.tenantId,
-        productId: product.id,
-        userAgent: request.headers.get('user-agent') || undefined,
-        referrer: request.headers.get('referer') || undefined,
+        productId,
+        tenantId,
+        userAgent,
+        referrer,
       },
     });
-
-    // 302 Redirect buyer directly to merchant affiliate URL
-    return NextResponse.redirect(product.affiliateUrl, 302);
-  } catch (err: unknown) {
-    console.error('Click tracking error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    console.error("Failed to record click telemetry:", error);
   }
+
+  return getRedirectResponse(targetUrl);
 }

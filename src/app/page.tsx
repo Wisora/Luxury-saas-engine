@@ -75,7 +75,8 @@ export default function App() {
 
   const currentPhaseRef = useRef<number>(currentPhase);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const terminalEndRef = useRef<HTMLDivElement | null>(null);
+  // Container ref replaces global window scrolling ref
+  const terminalContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     currentPhaseRef.current = currentPhase;
@@ -104,9 +105,10 @@ export default function App() {
     roi: 8.2,
   });
 
+  // Auto-scroll restricted strictly inside the terminal box element
   useEffect(() => {
-    if (activeView === "dashboard") {
-      terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (activeView === "dashboard" && terminalContainerRef.current) {
+      terminalContainerRef.current.scrollTop = terminalContainerRef.current.scrollHeight;
     }
   }, [logs, activeView]);
 
@@ -656,7 +658,7 @@ export default function App() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={clearLogs}
-                        className="text-[10px] font-mono text-gray-500 hover:text-amber-400 transition-colors flex items-center gap-1"
+                        className="text-[10px] font-mono text-gray-500 hover:text-amber-400 transition-colors flex items-center gap-1 cursor-pointer"
                         title="Clear console logs"
                       >
                         <RefreshCw className="w-3 h-3" />
@@ -677,7 +679,11 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="p-4 bg-black/60 font-mono text-[11px] h-44 overflow-y-auto space-y-2.5 scrollbar-thin">
+                  {/* Ref attached to terminal container for box-level auto-scroll */}
+                  <div
+                    ref={terminalContainerRef}
+                    className="p-4 bg-black/60 font-mono text-[11px] h-44 overflow-y-auto space-y-2.5 scrollbar-thin"
+                  >
                     {!Array.isArray(logs) || logs.length === 0 ? (
                       <div className="text-gray-600 text-center py-8">
                         No telemetry logs recorded. Scan a market.
@@ -707,7 +713,6 @@ export default function App() {
                         </div>
                       ))
                     )}
-                    <div ref={terminalEndRef} />
                   </div>
                 </div>
               </div>
