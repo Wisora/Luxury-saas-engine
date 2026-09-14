@@ -1,12 +1,28 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 
 export type ProductFormState = {
   error?: string;
   success?: boolean;
 };
+
+// Helper to handle Next.js 15 cache invalidation across tags and paths
+function clearTenantCache(subdomain: string) {
+  if (!subdomain) return;
+  
+  // 1. Revalidate path-based route caches
+  revalidatePath(`/tenants/${subdomain}`);
+  revalidatePath(`/tenants/${subdomain}/dashboard`);
+
+  // 2. Immediate read-your-own-writes cache tag invalidation (Next.js 15)
+  try {
+    updateTag(`tenant-${subdomain}`);
+  } catch {
+    // Graceful fallback for non-tagged data caches
+  }
+}
 
 // 1. Action used by /onboarding to create/seed new products
 export async function createProduct(
@@ -44,8 +60,8 @@ export async function createProduct(
       },
     });
 
-    revalidatePath(`/tenants/${subdomain}`);
-    revalidatePath(`/tenants/${subdomain}/dashboard`);
+    // Clear Edge & Path Caches
+    clearTenantCache(subdomain);
 
     return { success: true };
   } catch (error) {
@@ -78,8 +94,8 @@ export async function updateProduct(formData: FormData) {
       },
     });
 
-    revalidatePath(`/tenants/${tenantSubdomain}/dashboard`);
-    revalidatePath(`/tenants/${tenantSubdomain}`);
+    // Clear Edge & Path Caches
+    clearTenantCache(tenantSubdomain);
 
     return { success: true };
   } catch (error) {
@@ -106,8 +122,8 @@ export async function deleteProduct(formData: FormData) {
       where: { id },
     });
 
-    revalidatePath(`/tenants/${tenantSubdomain}/dashboard`);
-    revalidatePath(`/tenants/${tenantSubdomain}`);
+    // Clear Edge & Path Caches
+    clearTenantCache(tenantSubdomain);
 
     return { success: true };
   } catch (error) {

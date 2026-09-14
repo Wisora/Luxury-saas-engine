@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 const PRICING_PLANS = [
   {
@@ -34,6 +35,7 @@ const PRICING_PLANS = [
 ];
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState('pro');
   const [subdomain, setSubdomain] = useState('');
   const [brandName, setBrandName] = useState('');
@@ -47,9 +49,9 @@ export default function OnboardingPage() {
     try {
       const activePlan = PRICING_PLANS.find((p) => p.id === selectedPlan);
 
-      // 1. If Free/Starter Plan selected, skip payment and redirect to dashboard
+      // 1. If Free/Starter Plan selected, skip payment and redirect to dashboard using Next.js Router
       if (!activePlan || activePlan.price === 0) {
-        window.location.href = `/tenants/${subdomain}/dashboard`;
+        router.push('/dashboard');
         return;
       }
 
@@ -68,6 +70,7 @@ export default function OnboardingPage() {
       const data = await res.json();
 
       if (data.url) {
+        // Redirecting offsite to Paystack Checkout URL
         window.location.href = data.url;
       } else {
         alert(data.error || 'Could not initiate checkout.');

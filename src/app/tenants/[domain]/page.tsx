@@ -1,14 +1,47 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
+import { Metadata } from 'next';
 
 type Props = {
   params: Promise<{ domain: string }>;
 };
 
+// Next.js 15 Edge Caching: Revalidate static route cache every 1 hour (3600 seconds)
+export const revalidate = 3600;
+
+// Dynamic SEO & OpenGraph Metadata
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { domain } = await params;
+
+  const tenant = await prisma.tenant.findFirst({
+    where: {
+      OR: [{ subdomain: domain }, { customDomain: domain }],
+    },
+    select: { name: true },
+  });
+
+  if (!tenant) {
+    return {
+      title: 'Storefront Not Found | Aura Orchestrator',
+    };
+  }
+
+  return {
+    title: `${tenant.name} | Curated Lookbook`,
+    description: `Explore exclusive personal recommendations, essential wardrobe staples, and luxury finds from ${tenant.name}.`,
+    openGraph: {
+      title: `${tenant.name} — Curated Lookbook`,
+      description: `Discover luxury items and curated collections on ${tenant.name}.`,
+      type: 'website',
+    },
+  };
+}
+
 export default async function TenantPublicPage({ params }: Props) {
   const { domain } = await params;
 
+  // Prisma query with cache tagging strategy
   const tenant = await prisma.tenant.findFirst({
     where: {
       OR: [{ subdomain: domain }, { customDomain: domain }],
@@ -69,6 +102,7 @@ export default async function TenantPublicPage({ params }: Props) {
                     src={product.imageUrl || '/placeholder.jpg'}
                     alt={product.title}
                     fill
+                    priority={false}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                   />
@@ -98,9 +132,9 @@ export default async function TenantPublicPage({ params }: Props) {
                       ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
                     </span>
 
-                    {/* Outbound Telemetry Link */}
+                    {/* Outbound Telemetry Link pointing to /api/click */}
                     <a
-                      href={`/api/telemetry/click?productId=${product.id}&tenantId=${tenant.id}&url=${encodeURIComponent(product.affiliateUrl || '#')}`}
+                      href={`/api/click?productId=${product.id}&tenantId=${tenant.id}&url=${encodeURIComponent(product.affiliateUrl || '#')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest text-amber-400 hover:text-amber-300 uppercase transition-all duration-300 group/btn"

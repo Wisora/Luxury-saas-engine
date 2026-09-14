@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { LuxuryItem, VIPDrop, PipelineLog, SystemMetrics } from "../types";
 
 interface AuditResult {
@@ -331,6 +332,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
               </p>
             </div>
             <button
+              type="button"
               onClick={() => setIsSystemActive((prev) => !prev)}
               className={`px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 isSystemActive
@@ -346,6 +348,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
             {["Watches", "Fashion", "Art"].map((cat) => (
               <button
                 key={cat}
+                type="button"
                 onClick={() => setSelectedCategory(cat)}
                 className={`p-4 rounded-lg border text-left transition cursor-pointer ${
                   selectedCategory === cat
@@ -363,6 +366,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
 
           <div className="flex gap-4">
             <button
+              type="button"
               onClick={handleAnalyzeCategory}
               disabled={analyzing}
               className="px-5 py-2.5 bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-slate-950 font-semibold text-xs rounded-lg transition cursor-pointer"
@@ -393,16 +397,18 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
 
           <div className="border border-dashed border-gold-500/30 rounded-lg p-4 bg-slate-950/40 text-center">
             {imagePreview ? (
-              <div className="relative inline-block">
-                <img
+              <div className="relative inline-block h-32 w-32">
+                <Image
                   src={imagePreview}
                   alt="Preview"
-                  className="h-32 object-cover rounded border border-gold-500/40"
+                  fill
+                  unoptimized
+                  className="object-cover rounded border border-gold-500/40"
                 />
                 <button
                   type="button"
                   onClick={handleRemoveImage}
-                  className="absolute -top-2 -right-2 bg-red-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-800 cursor-pointer"
+                  className="absolute -top-2 -right-2 bg-red-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-800 cursor-pointer z-10"
                 >
                   ✕
                 </button>
@@ -458,6 +464,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => handleAuditItem(item)}
                     disabled={auditingId === item.id}
                     className="px-4 py-2 bg-gold-600/20 text-gold-300 border border-gold-500/40 hover:bg-gold-600/30 disabled:opacity-50 text-xs font-semibold rounded-lg transition cursor-pointer"
@@ -494,6 +501,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
 
           <div className="flex gap-4 mb-4">
             <button
+              type="button"
               onClick={() => setAbVariant("A")}
               className={`px-4 py-2 text-xs font-semibold rounded-lg border transition cursor-pointer ${
                 abVariant === "A"
@@ -504,6 +512,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
               Variant A (Private Concierge)
             </button>
             <button
+              type="button"
               onClick={() => setAbVariant("B")}
               className={`px-4 py-2 text-xs font-semibold rounded-lg border transition cursor-pointer ${
                 abVariant === "B"
@@ -560,6 +569,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                 Enable Dynamic Auto-Scaling
               </span>
               <button
+                type="button"
                 onClick={() => setAutoScale((prev) => !prev)}
                 className={`px-4 py-1.5 text-xs rounded font-semibold transition cursor-pointer ${
                   autoScale
@@ -604,6 +614,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                 Monetization Boost Layer
               </span>
               <button
+                type="button"
                 onClick={() => setMonetizationEnabled((prev) => !prev)}
                 className={`px-4 py-1.5 text-xs rounded font-semibold transition cursor-pointer ${
                   monetizationEnabled
@@ -616,6 +627,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handleGenerateVipDrop}
               disabled={generatingVip}
               className="px-5 py-2.5 bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-slate-950 font-semibold text-xs rounded-lg transition cursor-pointer"
@@ -662,6 +674,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
               </div>
             </div>
             <button
+              type="button"
               onClick={() => setSpatialView((prev) => !prev)}
               className={`px-4 py-2 text-xs font-semibold rounded-lg border transition cursor-pointer ${
                 spatialView
@@ -695,6 +708,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handleExportPdf}
               disabled={exportingPdf}
               className="px-4 py-2 bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-lg transition flex items-center gap-2 cursor-pointer shadow-lg shadow-gold-950/30"
@@ -717,6 +731,7 @@ export const PhasePanel: React.FC<PhasePanelProps> = ({
                   className="flex-1 p-2.5 bg-slate-950 border border-slate-800 rounded text-xs text-slate-200 focus:border-gold-500 focus:outline-none"
                 />
                 <button
+                  type="button"
                   onClick={handleAskInvestor}
                   disabled={askingInvestor}
                   className="px-4 py-2 bg-gold-600 hover:bg-gold-500 disabled:opacity-50 text-slate-950 text-xs font-semibold rounded-lg transition cursor-pointer"
