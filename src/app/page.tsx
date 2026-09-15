@@ -75,12 +75,20 @@ export default function App() {
 
   const currentPhaseRef = useRef<number>(currentPhase);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  // Container ref replaces global window scrolling ref
   const terminalContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     currentPhaseRef.current = currentPhase;
   }, [currentPhase]);
+
+  // Clean up AudioContext on component unmount
+  useEffect(() => {
+    return () => {
+      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+        audioCtxRef.current.close().catch(() => {});
+      }
+    };
+  }, []);
 
   const [items, setItems] = useState<LuxuryItem[]>(() =>
     Array.isArray(INITIAL_LUXURY_ITEMS) ? INITIAL_LUXURY_ITEMS : []
@@ -105,10 +113,10 @@ export default function App() {
     roi: 8.2,
   });
 
-  // Auto-scroll restricted strictly inside the terminal box element
+  // Auto-scroll to top of terminal since logs are prepended (newest on top)
   useEffect(() => {
     if (activeView === "dashboard" && terminalContainerRef.current) {
-      terminalContainerRef.current.scrollTop = terminalContainerRef.current.scrollHeight;
+      terminalContainerRef.current.scrollTop = 0;
     }
   }, [logs, activeView]);
 
@@ -679,7 +687,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Ref attached to terminal container for box-level auto-scroll */}
                   <div
                     ref={terminalContainerRef}
                     className="p-4 bg-black/60 font-mono text-[11px] h-44 overflow-y-auto space-y-2.5 scrollbar-thin"
