@@ -57,14 +57,14 @@ export default function OnboardingPage() {
         return;
       }
 
-      // 2. Initialize Paystack Checkout for Paid Plans with fallback safety check
+      // 2. Initialize Paystack Checkout for Paid Plans
       const res = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
+          email: email,
           tenantSubdomain: subdomain,
-          amountUsd: activePlan.price,
+          amountInZar: activePlan.price,
           planCode: activePlan.planCode || 'PLN_DEFAULT_PRO',
         }),
       });
