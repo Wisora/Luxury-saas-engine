@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, use } from 'react';
 import { motion } from 'framer-motion';
 
 interface MetricProps {
@@ -34,7 +34,15 @@ const MetricCard = ({ label, value, change, subtext }: MetricProps) => (
   </motion.div>
 );
 
-export default function CreatorDashboard({ params }: { params: { subdomain: string } }) {
+interface PageProps {
+  params: Promise<{ domain: string }>;
+}
+
+export default function CreatorDashboard({ params }: PageProps) {
+  // Unwrap async params for Next.js 15+ / 16 compatibility
+  const resolvedParams = use(params);
+  const domain = resolvedParams?.domain || 'TENANT';
+
   const [activeTab, setActiveTab] = useState<'overview' | 'catalog' | 'analytics'>('overview');
 
   return (
@@ -46,7 +54,7 @@ export default function CreatorDashboard({ params }: { params: { subdomain: stri
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
               <h1 className="font-serif text-2xl text-white font-normal tracking-wide">
-                {params.subdomain.toUpperCase()} PIPELINE
+                {domain.toUpperCase()} PIPELINE
               </h1>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -56,7 +64,7 @@ export default function CreatorDashboard({ params }: { params: { subdomain: stri
 
           <div className="flex items-center gap-3">
             <a
-              href={`/tenants/${params.subdomain}`}
+              href={`/tenants/${domain}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 px-4 py-2 rounded-lg bg-slate-900/80 transition-all duration-300"
@@ -185,12 +193,12 @@ export default function CreatorDashboard({ params }: { params: { subdomain: stri
 
               <div className="p-3 bg-slate-950 rounded-lg border border-white/10 flex items-center justify-between text-xs font-mono text-slate-300 mb-4">
                 <span className="truncate">
-                  {`https://${params.subdomain}.luxury-saas-engine.vercel.app`}
+                  {`https://${domain}.luxury-saas-engine.vercel.app`}
                 </span>
                 <button
                   onClick={() =>
                     navigator.clipboard.writeText(
-                      `https://${params.subdomain}.luxury-saas-engine.vercel.app`
+                      `https://${domain}.luxury-saas-engine.vercel.app`
                     )
                   }
                   className="ml-2 text-amber-400 hover:text-amber-300 font-sans font-semibold uppercase"
