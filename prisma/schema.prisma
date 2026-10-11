@@ -1,64 +1,65 @@
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql"
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 model Tenant {
-  id              String   @id @default(uuid())
-  name            String
-  subdomain       String   @unique
-  customDomain    String?  @unique
+  id              String   @id @default(uuid())
+  name            String
+  subdomain       String   @unique
+  customDomain    String?  @unique
 
-  primaryColor    String   @default("#000000")
-  accentColor     String   @default("#D4AF37")
-  logoUrl         String?
-  disclosureText  String?  @default("Affiliate Marketplace Network")
+  primaryColor    String   @default("#000000")
+  accentColor     String   @default("#D4AF37")
+  logoUrl         String?
+  disclosureText  String?  @default("Affiliate Marketplace Network")
 
-  // Automation flag for Phase 4 control
-  isAutomationEnabled Boolean @default(true)
+  // Automation flag for Phase 4 control
+  isAutomationEnabled Boolean @default(true)
 
-  cjPublisherId   String?
-  rakutenSiteId   String?
+  cjPublisherId   String?
+  rakutenSiteId   String?
 
-  products        Product[]
-  clicks          Click[]   // Back-relation for tenant telemetry
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @default(now()) @updatedAt
+  products        Product[]
+  clicks          Click[]   // Back-relation for tenant telemetry
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
 
-  @@index([subdomain])
-  @@index([customDomain])
+  @@index([subdomain])
+  @@index([customDomain])
 }
 
 model Product {
-  id           String   @id @default(uuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  title        String
-  category     String
-  price        Float
-  imageUrl     String
-  affiliateUrl String
-  clicks       Click[]  // Back-relation for product telemetry
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now()) @updatedAt
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title        String
+  category     String
+  price        Float
+  imageUrl     String
+  affiliateUrl String
+  clicks       Click[]  // Back-relation for product telemetry
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
 
-  @@index([tenantId])
+  @@index([tenantId])
 }
 
 model Click {
-  id        String   @id @default(uuid())
-  tenantId  String
-  productId String
-  userAgent String?
-  referrer  String?
-  createdAt DateTime @default(now())
+  id        String   @id @default(uuid())
+  tenantId  String
+  productId String
+  userAgent String?
+  referrer  String?
+  createdAt DateTime @default(now())
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId])
-  @@index([productId])
+  @@index([tenantId])
+  @@index([productId])
 }
+please scan and update
