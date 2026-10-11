@@ -7,7 +7,7 @@ type Props = {
   params: Promise<{ domain: string }>;
 };
 
-// Next.js 15 Edge Caching: Revalidate static route cache every 1 hour (3600 seconds)
+// Next.js Edge Caching: Revalidate static route cache every 1 hour (3600 seconds)
 export const revalidate = 3600;
 
 // Dynamic SEO & OpenGraph Metadata
@@ -129,7 +129,7 @@ export default async function TenantPublicPage({ params }: Props) {
                   {/* Price & Telemetry Action Link */}
                   <div className="pt-4 border-t border-white/5 flex items-center justify-between">
                     <span className="text-slate-300 font-mono text-sm">
-                      ${typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
+                      ${Number(product.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
 
                     {/* Outbound Telemetry Link pointing to /api/click */}
