@@ -5,7 +5,7 @@ const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY || '');
 
 interface PaystackInitPayload {
   email: string;
-  amount: number;
+  amount: string;
   callback_url: string;
   plan?: string;
   metadata: {
@@ -30,14 +30,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // Paystack takes amount in subunits (cents/kobo) as an integer
+    // Paystack takes amount in subunits (cents/kobo) as a string
     const amountInCents = Math.round(Number(amountInZar) * 100);
 
-    // Build payload using the explicit interface instead of 'any'
+    // Build payload matching the SDK's expected string amount type
     const payload: PaystackInitPayload = {
       email,
-      amount: amountInCents,
-      callback_url: `http://localhost:3000/dashboard?payment=success`,
+      amount: amountInCents.toString(),
+      callback_url: `http://localhost:3000/tenants/${tenantSubdomain}/dashboard?payment=success`,
       metadata: {
         tenantSubdomain,
         custom_fields: [
