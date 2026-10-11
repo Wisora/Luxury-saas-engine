@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, use } from 'react';
+import React, { useState, use, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createProduct } from '@/app/actions/product';
 
 interface MetricProps {
   label: string;
@@ -36,25 +37,24 @@ const MetricCard = ({ label, value, change, subtext }: MetricProps) => (
 );
 
 interface ProductCardProps {
+  id: string;
   title: string;
-  brand: string;
-  price: string;
+  category: string;
+  price: number;
   imageUrl: string;
   affiliateUrl: string;
-  clicks: number;
+  clicks?: number;
 }
 
-const Luxury3DProductCard = ({ title, brand, price, imageUrl, affiliateUrl, clicks }: ProductCardProps) => (
+const Luxury3DProductCard = ({ title, category, price, imageUrl, affiliateUrl, clicks = 0 }: ProductCardProps) => (
   <motion.div
     whileHover={{ scale: 1.02, rotateX: 3, rotateY: -3 }}
     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     className="group relative rounded-2xl bg-slate-900/70 border border-white/10 p-4 shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col justify-between"
   >
-    {/* Ambient Gold Glow on Hover */}
     <div className="absolute -inset-px bg-gradient-to-r from-amber-500/0 via-amber-500/20 to-amber-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl pointer-events-none" />
 
     <div>
-      {/* 3D Image Display Container */}
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-slate-950 mb-4 border border-white/5">
         {imageUrl ? (
           <motion.img
@@ -70,24 +70,21 @@ const Luxury3DProductCard = ({ title, brand, price, imageUrl, affiliateUrl, clic
           </div>
         )}
 
-        {/* Floating Brand Badge */}
         <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest text-amber-400">
-          {brand}
+          {category}
         </div>
 
-        {/* Telemetry Badge */}
         <div className="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-md text-[10px] font-mono text-slate-300">
           {clicks} Clicks
         </div>
       </div>
 
-      {/* Details */}
       <div className="space-y-1">
         <h3 className="font-serif text-lg text-white group-hover:text-amber-200 transition-colors truncate">
           {title}
         </h3>
         <p className="font-mono text-sm font-medium text-amber-400">
-          {price}
+          R {price.toLocaleString()}
         </p>
       </div>
     </div>
@@ -114,51 +111,27 @@ export default function CreatorDashboard({ params }: PageProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'catalog' | 'analytics'>('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  // Form State
-  const [itemTitle, setItemTitle] = useState('');
-  const [itemBrand, setItemBrand] = useState('');
-  const [itemPrice, setItemPrice] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [affiliateUrl, setAffiliateUrl] = useState('');
-
-  // Sample items state
-  const [items, setItems] = useState([
+  // Live products state synced with Supabase
+  const [items, setItems] = useState<ProductCardProps[]>([
     {
-      id: 1,
+      id: '1',
       title: 'Velvet Evening Blazer',
-      brand: 'TOM FORD',
-      price: 'R 24,500',
-      imageUrl: '',
+      category: 'TOM FORD',
+      price: 24500,
+      imageUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6',
       affiliateUrl: 'https://www.tomford.com',
       clicks: 412,
     },
     {
-      id: 2,
+      id: '2',
       title: 'Oyster Perpetual 36',
-      brand: 'ROLEX',
-      price: 'R 145,000',
-      imageUrl: '',
+      category: 'ROLEX',
+      price: 145000,
+      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30',
       affiliateUrl: 'https://www.rolex.com',
       clicks: 328,
-    },
-    {
-      id: 3,
-      title: 'Le Chiquito Mini Bag',
-      brand: 'JACQUEMUS',
-      price: 'R 12,800',
-      imageUrl: '',
-      affiliateUrl: 'https://www.jacquemus.com',
-      clicks: 289,
-    },
-    {
-      id: 4,
-      title: 'Cashmere Trench Coat',
-      brand: 'BURBERRY',
-      price: 'R 38,000',
-      imageUrl: '',
-      affiliateUrl: 'https://www.burberry.com',
-      clicks: 194,
     },
   ]);
 
@@ -174,9 +147,9 @@ export default function CreatorDashboard({ params }: PageProps) {
   };
 
   const handleExportCSV = () => {
-    const headers = 'Item Title,Brand,Price,Image URL,Affiliate URL,Outbound Clicks\n';
+    const headers = 'Item Title,Category,Price,Image URL,Affiliate URL,Outbound Clicks\n';
     const rows = items
-      .map((i) => `"${i.title}","${i.brand}","${i.price}","${i.imageUrl}","${i.affiliateUrl}",${i.clicks}`)
+      .map((i) => `"${i.title}","${i.category}",${i.price},"${i.imageUrl}","${i.affiliateUrl}",${i.clicks || 0}`)
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -188,38 +161,13 @@ export default function CreatorDashboard({ params }: PageProps) {
     showNotification('Raw CSV Exported Successfully!');
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!itemTitle || !itemBrand || !itemPrice) return;
-
-    const newItem = {
-      id: Date.now(),
-      title: itemTitle,
-      brand: itemBrand.toUpperCase(),
-      price: itemPrice.startsWith('R') ? itemPrice : `R ${itemPrice}`,
-      imageUrl,
-      affiliateUrl,
-      clicks: 0,
-    };
-
-    setItems([newItem, ...items]);
-    setItemTitle('');
-    setItemBrand('');
-    setItemPrice('');
-    setImageUrl('');
-    setAffiliateUrl('');
-    setIsModalOpen(false);
-    showNotification('New High-Class Piece Added!');
-  };
-
-  const handleDeleteItem = (id: number) => {
+  const handleDeleteItem = (id: string) => {
     setItems(items.filter((item) => item.id !== id));
     showNotification('Item Removed from Lookbook.');
   };
 
   return (
     <div className="min-h-screen bg-[#070A0F] text-slate-200 relative selection:bg-amber-400 selection:text-slate-950">
-      {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
           <motion.div
@@ -233,7 +181,6 @@ export default function CreatorDashboard({ params }: PageProps) {
         )}
       </AnimatePresence>
 
-      {/* Dashboard Header / Navigation */}
       <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -266,7 +213,6 @@ export default function CreatorDashboard({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
         <div className="max-w-7xl mx-auto px-6 flex gap-8 border-t border-white/5 text-xs font-medium uppercase tracking-widest text-slate-400">
           {(['overview', 'catalog', 'analytics'] as const).map((tab) => (
             <button
@@ -288,15 +234,13 @@ export default function CreatorDashboard({ params }: PageProps) {
         </div>
       </header>
 
-      {/* Main Workspace */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <MetricCard
                 label="Outbound Clicks"
-                value={items.reduce((acc, curr) => acc + curr.clicks, 0).toLocaleString()}
+                value={items.reduce((acc, curr) => acc + (curr.clicks || 0), 0).toLocaleString()}
                 change="+18.4%"
                 subtext="Total affiliate link routing"
               />
@@ -319,7 +263,6 @@ export default function CreatorDashboard({ params }: PageProps) {
               />
             </section>
 
-            {/* Interactive 3D Showcase Grid */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -334,102 +277,9 @@ export default function CreatorDashboard({ params }: PageProps) {
                 ))}
               </div>
             </section>
-
-            {/* Engagement Table & Bio Link */}
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="font-serif text-xl text-white font-normal">
-                      Highest Engagement Recommendations
-                    </h2>
-                    <p className="text-xs text-slate-400">
-                      Real-time outbound telemetry by item
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleExportCSV}
-                    className="text-xs text-amber-400 hover:underline cursor-pointer font-semibold uppercase tracking-wider"
-                  >
-                    Export Raw CSV
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-white/10 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        <th className="pb-3 font-normal">Item</th>
-                        <th className="pb-3 font-normal">Brand</th>
-                        <th className="pb-3 font-normal">Price</th>
-                        <th className="pb-3 font-normal text-right">Clicks</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {items.map((item) => (
-                        <tr key={item.id} className="group hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3.5 font-serif text-white group-hover:text-amber-200 transition-colors flex items-center gap-3">
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.title}
-                                className="w-8 h-8 rounded-lg object-cover border border-white/10"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-lg bg-slate-950 border border-white/10 flex items-center justify-center text-[9px] text-slate-600 font-mono">
-                                N/A
-                              </div>
-                            )}
-                            {item.title}
-                          </td>
-                          <td className="py-3.5 text-xs tracking-widest text-amber-500/90 font-semibold uppercase">
-                            {item.brand}
-                          </td>
-                          <td className="py-3.5 text-xs text-slate-300 font-mono">{item.price}</td>
-                          <td className="py-3.5 text-right font-mono text-sm text-slate-200">
-                            {item.clicks}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
-                  <h2 className="font-serif text-xl text-white font-normal mb-2">
-                    Storefront Bio Link
-                  </h2>
-                  <p className="text-xs text-slate-400 mb-4 font-light">
-                    Direct access portal for client bio placement.
-                  </p>
-
-                  <div className="p-3 bg-slate-950 rounded-xl border border-white/10 flex items-center justify-between text-xs font-mono text-slate-300 mb-4">
-                    <span className="truncate">
-                      {`https://${domain}.luxury-saas-engine.vercel.app`}
-                    </span>
-                    <button
-                      onClick={handleCopyLink}
-                      className="ml-2 text-amber-400 hover:text-amber-300 font-sans font-semibold uppercase cursor-pointer text-xs"
-                    >
-                      Copy
-                    </button>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 space-y-1">
-                    <span className="font-semibold block text-amber-400">💡 Optimization Advice</span>
-                    <p className="font-light leading-relaxed">
-                      Exhibiting 5 to 8 ultra-luxurious key items yields up to 3x higher outbound click conversion.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
           </div>
         )}
 
-        {/* CATALOG TAB */}
         {activeTab === 'catalog' && (
           <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 space-y-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -473,9 +323,9 @@ export default function CreatorDashboard({ params }: PageProps) {
                         )}
                         {item.title}
                       </td>
-                      <td className="py-4 text-xs tracking-widest text-amber-500 font-semibold uppercase">{item.brand}</td>
-                      <td className="py-4 text-xs font-mono text-slate-300">{item.price}</td>
-                      <td className="py-4 font-mono text-sm text-slate-200">{item.clicks}</td>
+                      <td className="py-4 text-xs tracking-widest text-amber-500 font-semibold uppercase">{item.category}</td>
+                      <td className="py-4 text-xs font-mono text-slate-300">R {item.price.toLocaleString()}</td>
+                      <td className="py-4 font-mono text-sm text-slate-200">{item.clicks || 0}</td>
                       <td className="py-4 text-right">
                         <button
                           onClick={() => handleDeleteItem(item.id)}
@@ -492,46 +342,17 @@ export default function CreatorDashboard({ params }: PageProps) {
           </div>
         )}
 
-        {/* ANALYTICS TAB */}
         {activeTab === 'analytics' && (
           <div className="space-y-6">
             <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="font-serif text-xl text-white font-normal mb-1">Audience & Telemetry Analysis</h2>
-                  <p className="text-xs text-slate-400">Deep dive into user sessions and referral channels</p>
-                </div>
-                <button
-                  onClick={handleExportCSV}
-                  className="text-xs font-semibold uppercase tracking-wider text-slate-950 bg-amber-400 hover:bg-amber-300 px-4 py-2 rounded-lg transition-colors cursor-pointer"
-                >
-                  Export Telemetry CSV
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-slate-950/80 p-5 rounded-xl border border-white/5">
-                  <span className="text-[10px] uppercase text-slate-400 tracking-wider">Top Referral Source</span>
-                  <div className="font-serif text-2xl text-white mt-2">Instagram Bio</div>
-                  <p className="text-xs text-emerald-400 mt-1">64% of total traffic</p>
-                </div>
-                <div className="bg-slate-950/80 p-5 rounded-xl border border-white/5">
-                  <span className="text-[10px] uppercase text-slate-400 tracking-wider">Avg. Session Time</span>
-                  <div className="font-serif text-2xl text-white mt-2">2m 45s</div>
-                  <p className="text-xs text-emerald-400 mt-1">+14s improvement</p>
-                </div>
-                <div className="bg-slate-950/80 p-5 rounded-xl border border-white/5">
-                  <span className="text-[10px] uppercase text-slate-400 tracking-wider">Bounce Rate</span>
-                  <div className="font-serif text-2xl text-white mt-2">32.4%</div>
-                  <p className="text-xs text-emerald-400 mt-1">-4.2% optimization</p>
-                </div>
-              </div>
+              <h2 className="font-serif text-xl text-white font-normal mb-1">Audience & Telemetry Analysis</h2>
+              <p className="text-xs text-slate-400">Deep dive into user sessions and referral channels</p>
             </div>
           </div>
         )}
       </main>
 
-      {/* Upmarket Add Item Modal */}
+      {/* Supabase-Connected Modal Form */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -551,17 +372,31 @@ export default function CreatorDashboard({ params }: PageProps) {
                 </button>
               </div>
 
-              <form onSubmit={handleAddItem} className="space-y-4">
+              <form
+                action={async (formData) => {
+                  startTransition(async () => {
+                    const result = await createProduct({ error: undefined }, formData);
+                    if (result.error) {
+                      showNotification(result.error);
+                    } else {
+                      setIsModalOpen(false);
+                      showNotification('New High-Class Piece Saved to Database!');
+                    }
+                  });
+                }}
+                className="space-y-4"
+              >
+                <input type="hidden" name="subdomain" value={domain} />
+
                 <div>
                   <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
                     Item Title
                   </label>
                   <input
                     type="text"
+                    name="title"
                     required
                     placeholder="e.g. Silk Evening Gown"
-                    value={itemTitle}
-                    onChange={(e) => setItemTitle(e.target.value)}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -572,10 +407,9 @@ export default function CreatorDashboard({ params }: PageProps) {
                   </label>
                   <input
                     type="text"
+                    name="category"
                     required
                     placeholder="e.g. GUCCI"
-                    value={itemBrand}
-                    onChange={(e) => setItemBrand(e.target.value)}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -586,10 +420,9 @@ export default function CreatorDashboard({ params }: PageProps) {
                   </label>
                   <input
                     type="text"
+                    name="price"
                     required
-                    placeholder="e.g. 15,500"
-                    value={itemPrice}
-                    onChange={(e) => setItemPrice(e.target.value)}
+                    placeholder="e.g. 15500"
                     className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -600,10 +433,9 @@ export default function CreatorDashboard({ params }: PageProps) {
                   </label>
                   <input
                     type="url"
+                    name="imageUrl"
                     required
                     placeholder="Paste high-res image link..."
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -614,9 +446,8 @@ export default function CreatorDashboard({ params }: PageProps) {
                   </label>
                   <input
                     type="url"
+                    name="affiliateUrl"
                     placeholder="https://www.gucci.com"
-                    value={affiliateUrl}
-                    onChange={(e) => setAffiliateUrl(e.target.value)}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400"
                   />
                 </div>
@@ -631,9 +462,10 @@ export default function CreatorDashboard({ params }: PageProps) {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-semibold uppercase text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors cursor-pointer"
+                    disabled={isPending}
+                    className="px-4 py-2 text-xs font-semibold uppercase text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    Save Piece
+                    {isPending ? 'Saving...' : 'Save to Database'}
                   </button>
                 </div>
               </form>

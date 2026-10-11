@@ -62,4 +62,3 @@ model Click {
   @@index([tenantId])
   @@index([productId])
 }
-please scan and update

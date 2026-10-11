@@ -11,7 +11,7 @@ export type ProductFormState = {
 // Helper to handle Next.js 15 cache invalidation across tags and paths
 function clearTenantCache(subdomain: string) {
   if (!subdomain) return;
-  
+
   // 1. Revalidate path-based route caches
   revalidatePath(`/tenants/${subdomain}`);
   revalidatePath(`/tenants/${subdomain}/dashboard`);
@@ -24,7 +24,7 @@ function clearTenantCache(subdomain: string) {
   }
 }
 
-// 1. Action used by /onboarding to create/seed new products
+// 1. Action used to create/seed new products (Onboarding & Dashboard Modal)
 export async function createProduct(
   prevState: ProductFormState,
   formData: FormData
@@ -32,12 +32,15 @@ export async function createProduct(
   const subdomain = formData.get('subdomain') as string;
   const title = formData.get('title') as string;
   const category = (formData.get('category') as string) || 'General';
-  const price = parseFloat(formData.get('price') as string);
+  const rawPrice = formData.get('price') as string;
   const imageUrl = formData.get('imageUrl') as string;
-  const affiliateUrl = formData.get('affiliateUrl') as string;
+  const affiliateUrl = (formData.get('affiliateUrl') as string) || '#';
 
-  if (!subdomain || !title || isNaN(price) || !imageUrl || !affiliateUrl) {
-    return { error: 'Please fill out all required product fields.' };
+  // Clean price string (handles inputs like "R 15,500" or "15500")
+  const price = parseFloat(rawPrice?.replace(/[^\d.]/g, '') || '0');
+
+  if (!subdomain || !title || isNaN(price) || price <= 0 || !imageUrl) {
+    return { error: 'Please provide a valid title, price, image URL, and subdomain.' };
   }
 
   try {
@@ -70,17 +73,20 @@ export async function createProduct(
   }
 }
 
-// 2. Action used by dashboard modal to update existing products
+// 2. Action used by dashboard modal to update existing products (including imageUrl)
 export async function updateProduct(formData: FormData) {
   const id = formData.get('id') as string;
   const title = formData.get('title') as string;
-  const price = parseFloat(formData.get('price') as string);
+  const rawPrice = formData.get('price') as string;
   const category = formData.get('category') as string;
+  const imageUrl = formData.get('imageUrl') as string;
   const affiliateUrl = formData.get('affiliateUrl') as string;
   const tenantSubdomain = formData.get('tenantSubdomain') as string;
 
+  const price = parseFloat(rawPrice?.replace(/[^\d.]/g, '') || '0');
+
   if (!id || !title || isNaN(price)) {
-    return { success: false, error: 'Missing required fields' };
+    return { success: false, error: 'Missing required fields or invalid price.' };
   }
 
   try {
@@ -90,6 +96,7 @@ export async function updateProduct(formData: FormData) {
         title,
         price,
         category,
+        ...(imageUrl && { imageUrl }), // Updates imageUrl if provided
         affiliateUrl,
       },
     });
@@ -100,7 +107,7 @@ export async function updateProduct(formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error('Failed to update product:', error);
-    return { success: false, error: 'Failed to update product' };
+    return { success: false, error: 'Failed to update product in database.' };
   }
 }
 
@@ -114,6 +121,7 @@ export async function deleteProduct(formData: FormData) {
   }
 
   try {
+    // Delete associated clicks telemetry first to prevent foreign key constraints
     await prisma.click.deleteMany({
       where: { productId: id },
     });
