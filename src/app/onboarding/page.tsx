@@ -57,7 +57,7 @@ export default function OnboardingPage() {
         return;
       }
 
-      // 2. Initialize Paystack Checkout for Paid Plans
+      // 2. Initialize Paystack Checkout for Paid Plans with fallback safety check
       const res = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,7 +65,7 @@ export default function OnboardingPage() {
           email,
           tenantSubdomain: subdomain,
           amountUsd: activePlan.price,
-          planCode: activePlan.planCode,
+          planCode: activePlan.planCode || 'PLN_DEFAULT_PRO',
         }),
       });
 
@@ -141,7 +141,7 @@ export default function OnboardingPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. Luxe Living"
+                placeholder="e.g. Alchemy Avenue"
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-sm"
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. luxeliving"
+                placeholder="e.g. alchemy"
                 value={subdomain}
                 onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                 className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-sm"
@@ -170,7 +170,7 @@ export default function OnboardingPage() {
             <input
               type="email"
               required
-              placeholder="billing@yourbrand.co.za"
+              placeholder="billing@alchemyavenue.co.za"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-sm"
