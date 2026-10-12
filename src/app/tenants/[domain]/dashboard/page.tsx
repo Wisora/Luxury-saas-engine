@@ -3,6 +3,7 @@
 import React, { useState, use, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createProduct } from '@/app/actions/product';
+import AnalyticsChart from '@/components/AnalyticsChart';
 
 interface MetricProps {
   label: string;
@@ -113,7 +114,7 @@ export default function CreatorDashboard({ params }: PageProps) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Live products state synced with Supabase
+  // Live products state
   const [items, setItems] = useState<ProductCardProps[]>([
     {
       id: '1',
@@ -143,7 +144,7 @@ export default function CreatorDashboard({ params }: PageProps) {
   const handleCopyLink = () => {
     const storefrontUrl = `https://${domain}.luxury-saas-engine.vercel.app`;
     navigator.clipboard.writeText(storefrontUrl);
-    showNotification('Bio Link Copied to Clipboard!');
+    showNotification('Bio Link Copied to Clipboard! 📋');
   };
 
   const handleExportCSV = () => {
@@ -195,7 +196,13 @@ export default function CreatorDashboard({ params }: PageProps) {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center flex-wrap gap-3">
+            <button
+              onClick={handleCopyLink}
+              className="text-xs font-semibold uppercase tracking-wider text-slate-300 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 px-4 py-2 rounded-lg bg-slate-900/80 transition-all duration-300 cursor-pointer"
+            >
+              Copy Bio Link 📋
+            </button>
             <a
               href={`/tenants/${domain}`}
               target="_blank"
@@ -345,8 +352,24 @@ export default function CreatorDashboard({ params }: PageProps) {
         {activeTab === 'analytics' && (
           <div className="space-y-6">
             <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6">
-              <h2 className="font-serif text-xl text-white font-normal mb-1">Audience & Telemetry Analysis</h2>
-              <p className="text-xs text-slate-400">Deep dive into user sessions and referral channels</p>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="font-serif text-xl text-white font-normal mb-1">
+                    Audience & Outbound Click Telemetry
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Real-time affiliate routing tracking & engagement trends
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportCSV}
+                  className="text-xs font-semibold uppercase tracking-wider text-amber-400 border border-amber-500/30 hover:bg-amber-400/10 px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                >
+                  Export Raw CSV ↗
+                </button>
+              </div>
+
+              <AnalyticsChart />
             </div>
           </div>
         )}
