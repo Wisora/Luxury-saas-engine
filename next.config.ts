@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: '*.supabase.co', // <-- Crucial for Supabase Storage uploads
+      },
+      {
+        protocol: 'https',
         hostname: 'share.gemini.google',
       },
       {
