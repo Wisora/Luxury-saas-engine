@@ -29,7 +29,7 @@ export async function createProduct(
   prevState: ProductFormState,
   formData: FormData
 ): Promise<ProductFormState> {
-  const subdomain = formData.get('subdomain') as string;
+  const subdomain = (formData.get('subdomain') as string) || 'demo';
   const title = formData.get('title') as string;
   const category = (formData.get('category') as string) || 'General';
   const rawPrice = formData.get('price') as string;
@@ -44,12 +44,18 @@ export async function createProduct(
   }
 
   try {
-    const tenant = await prisma.tenant.findUnique({
+    // Find existing tenant or auto-create tenant record in Supabase
+    let tenant = await prisma.tenant.findUnique({
       where: { subdomain },
     });
 
     if (!tenant) {
-      return { error: `Tenant with subdomain "${subdomain}" not found.` };
+      tenant = await prisma.tenant.create({
+        data: {
+          subdomain,
+          name: `${subdomain.toUpperCase()} Storefront`,
+        },
+      });
     }
 
     await prisma.product.create({
@@ -73,7 +79,7 @@ export async function createProduct(
   }
 }
 
-// 2. Action used by dashboard modal to update existing products (including imageUrl)
+// 2. Action used by dashboard modal to update existing products
 export async function updateProduct(formData: FormData) {
   const id = formData.get('id') as string;
   const title = formData.get('title') as string;
@@ -96,12 +102,11 @@ export async function updateProduct(formData: FormData) {
         title,
         price,
         category,
-        ...(imageUrl && { imageUrl }), // Updates imageUrl if provided
+        ...(imageUrl && { imageUrl }),
         affiliateUrl,
       },
     });
 
-    // Clear Edge & Path Caches
     clearTenantCache(tenantSubdomain);
 
     return { success: true };
@@ -130,7 +135,6 @@ export async function deleteProduct(formData: FormData) {
       where: { id },
     });
 
-    // Clear Edge & Path Caches
     clearTenantCache(tenantSubdomain);
 
     return { success: true };
