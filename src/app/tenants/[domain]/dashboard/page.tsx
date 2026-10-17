@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, use, useTransition } from 'react';
+import React, { useState, useEffect, use, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createProduct } from '@/app/actions/product';
+import { createProduct, deleteProduct } from '@/app/actions/product';
 import AnalyticsChart from '@/components/AnalyticsChart';
 
 interface MetricProps {
@@ -114,27 +114,40 @@ export default function CreatorDashboard({ params }: PageProps) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Live products state
-  const [items, setItems] = useState<ProductCardProps[]>([
-    {
-      id: '1',
-      title: 'Velvet Evening Blazer',
-      category: 'TOM FORD',
-      price: 24500,
-      imageUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6',
-      affiliateUrl: 'https://www.tomford.com',
-      clicks: 412,
-    },
-    {
-      id: '2',
-      title: 'Oyster Perpetual 36',
-      category: 'ROLEX',
-      price: 145000,
-      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30',
-      affiliateUrl: 'https://www.rolex.com',
-      clicks: 328,
-    },
-  ]);
+  // Dynamic products state fetched directly from PostgreSQL via /api/storefront
+  const [items, setItems] = useState<ProductCardProps[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Helper to fetch live database products
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch(`/api/storefront?domain=${encodeURIComponent(domain)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.products) {
+          setItems(
+            data.products.map((p: any) => ({
+              id: p.id,
+              title: p.title,
+              category: p.category || 'LUXURY',
+              price: p.price,
+              imageUrl: p.imageUrl,
+              affiliateUrl: p.affiliateUrl,
+              clicks: p._count?.clicks || 0,
+            }))
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load items:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, [domain]);
 
   const showNotification = (msg: string) => {
     setToastMessage(msg);
@@ -162,9 +175,23 @@ export default function CreatorDashboard({ params }: PageProps) {
     showNotification('Raw CSV Exported Successfully!');
   };
 
-  const handleDeleteItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id));
-    showNotification('Item Removed from Lookbook.');
+  // Fixed deletion logic connected directly to Database Server Action
+  const handleDeleteItem = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this piece from your database?')) return;
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append('id', id);
+      formData.append('tenantSubdomain', domain);
+
+      const res = await deleteProduct(formData);
+      if (res.success) {
+        setItems((prev) => prev.filter((item) => item.id !== id));
+        showNotification('Item Removed from Database & Lookbook.');
+      } else {
+        showNotification(res.error || 'Failed to delete product');
+      }
+    });
   };
 
   return (
@@ -278,11 +305,19 @@ export default function CreatorDashboard({ params }: PageProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {items.map((item) => (
-                  <Luxury3DProductCard key={item.id} {...item} />
-                ))}
-              </div>
+              {loading ? (
+                <p className="text-xs text-slate-500">Loading catalog from database...</p>
+              ) : items.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 bg-slate-900/40 border border-white/10 rounded-2xl">
+                  No items found in your catalog. Click &quot;+ Add New Item&quot; to list your first piece!
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {items.map((item) => (
+                    <Luxury3DProductCard key={item.id} {...item} />
+                  ))}
+                </div>
+              )}
             </section>
           </div>
         )}
@@ -336,7 +371,8 @@ export default function CreatorDashboard({ params }: PageProps) {
                       <td className="py-4 text-right">
                         <button
                           onClick={() => handleDeleteItem(item.id)}
-                          className="text-xs text-rose-400 hover:text-rose-300 uppercase font-semibold cursor-pointer"
+                          disabled={isPending}
+                          className="text-xs text-rose-400 hover:text-rose-300 uppercase font-semibold cursor-pointer disabled:opacity-50"
                         >
                           Delete
                         </button>
@@ -403,6 +439,7 @@ export default function CreatorDashboard({ params }: PageProps) {
                       showNotification(result.error);
                     } else {
                       setIsModalOpen(false);
+                      await fetchProducts(); // Refresh catalog table instantly from DB
                       showNotification('New High-Class Piece Saved to Database!');
                     }
                   });

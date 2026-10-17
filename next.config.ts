@@ -6,19 +6,19 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.supabase.co', // <-- Crucial for Supabase Storage uploads
+        hostname: '*.supabase.co', // Supabase Storage
       },
       {
         protocol: 'https',
-        hostname: 'share.gemini.google',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
+        hostname: 'images.unsplash.com', // Unsplash Fallbacks
       },
       {
         protocol: 'https',
         hostname: '**.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**', // Direct image URLs fallback
       },
     ],
   },
