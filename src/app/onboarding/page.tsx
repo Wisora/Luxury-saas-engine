@@ -6,12 +6,19 @@ import { useRouter } from 'next/navigation';
 const PRICING_PLANS = [
   {
     id: 'starter',
-    name: 'Starter / Trial',
-    price: 0,
-    period: '14 Days Free',
-    description: 'Perfect for testing out your storefront and tracking initial clicks.',
-    planCode: '',
-    features: ['Up to 10 Listed Products', 'Basic Telemetry Analytics', 'Standard Support'],
+    name: 'Starter',
+    price: 39,
+    currency: '$',
+    period: '/month',
+    description: 'Ideal for individual luxury curators and single-brand boutiques.',
+    planCode: process.env.NEXT_PUBLIC_PAYSTACK_STARTER_PLAN_CODE || 'PLN_YOUR_STARTER_CODE',
+    features: [
+      '7-Day Free Trial',
+      '1 Storefront / Tenant',
+      'Up to 50 active catalog items',
+      'Standard click telemetry & analytics',
+      'Standard client support',
+    ],
   },
   {
     id: 'pro',
@@ -22,7 +29,12 @@ const PRICING_PLANS = [
     description: 'Ideal for independent luxury brokers and boutique dealers.',
     planCode: process.env.NEXT_PUBLIC_PAYSTACK_PRO_PLAN_CODE || 'PLN_YOUR_PRO_CODE',
     popular: true,
-    features: ['14-Day Free Trial', 'Market signal analysis & intake', 'Up to 50 visual compliance audits/mo', 'Standard intelligence reporting'],
+    features: [
+      '7-Day Free Trial',
+      'Market signal analysis & intake',
+      'Up to 50 visual compliance audits/mo',
+      'Standard intelligence reporting',
+    ],
   },
   {
     id: 'deluxe',
@@ -32,13 +44,18 @@ const PRICING_PLANS = [
     period: '/month',
     description: 'Designed for multi-brand luxury retailers & high-volume brokers.',
     planCode: process.env.NEXT_PUBLIC_PAYSTACK_DELUXE_PLAN_CODE || 'PLN_YOUR_DELUXE_CODE',
-    features: ['14-Day Free Trial', 'Unlimited visual compliance audits', 'Custom VIP Drop campaign generator', 'Apple Vision Pro 3D spatial canvas'],
+    features: [
+      '7-Day Free Trial',
+      'Unlimited visual compliance audits',
+      'Custom VIP Drop campaign generator',
+      'Apple Vision Pro 3D spatial canvas',
+    ],
   },
 ];
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [selectedPlan, setSelectedPlan] = useState('pro');
+  const [selectedPlan, setSelectedPlan] = useState('starter');
   const [subdomain, setSubdomain] = useState('');
   const [brandName, setBrandName] = useState('');
   const [email, setEmail] = useState('');
@@ -51,13 +68,14 @@ export default function OnboardingPage() {
     try {
       const activePlan = PRICING_PLANS.find((p) => p.id === selectedPlan);
 
-      // 1. If Free/Starter Plan selected, skip payment and redirect to dashboard
-      if (!activePlan || activePlan.price === 0) {
-        router.push('/dashboard');
+      // 1. Fallback if plan not found
+      if (!activePlan) {
+        alert('Please select a valid pricing plan.');
+        setLoading(false);
         return;
       }
 
-      // 2. Initialize Paystack Checkout for Paid Plans
+      // 2. Initialize Paystack Checkout for Selected Subscription Plan
       const res = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,7 +83,7 @@ export default function OnboardingPage() {
           email: email,
           tenantSubdomain: subdomain,
           amountInZar: activePlan.price,
-          planCode: activePlan.planCode || 'PLN_DEFAULT_PRO',
+          planCode: activePlan.planCode || 'PLN_DEFAULT_STARTER',
         }),
       });
 
@@ -114,7 +132,7 @@ export default function OnboardingPage() {
                 <h3 className="text-xl font-bold text-white">{plan.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold text-white">
-                    {plan.price === 0 ? '$0' : `${plan.currency}${plan.price}`}
+                    {`${plan.currency}${plan.price}`}
                   </span>
                   <span className="text-slate-400 text-sm">{plan.period}</span>
                 </div>
@@ -182,7 +200,7 @@ export default function OnboardingPage() {
             disabled={loading}
             className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-base transition-colors shadow-lg cursor-pointer"
           >
-            {loading ? 'Setting Up...' : selectedPlan === 'starter' ? 'Launch Storefront (Free Trial)' : 'Continue to Paystack Checkout ↗'}
+            {loading ? 'Setting Up...' : 'Continue to Paystack Checkout ↗'}
           </button>
         </form>
       </div>
