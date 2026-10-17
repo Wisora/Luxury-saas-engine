@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -712,7 +712,7 @@ export default function App() {
                                 : "bg-blue-950 text-blue-400 border border-blue-900/40"
                             }`}
                           >
-                            P{log.phase} - {log.agent}
+                            P{log.phase} • {log.agent}
                           </span>
                           <span className="text-gray-300 break-words flex-1 min-w-0">
                             {log.message}

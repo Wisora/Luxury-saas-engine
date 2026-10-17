@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from "react";
@@ -22,7 +21,7 @@ declare global {
 }
 
 interface PaystackSubscribeButtonProps {
-  planKey: "pro" | "deluxe";
+  planKey: "starter" | "pro" | "deluxe";
   userEmail: string;
   onSuccess?: (reference: string) => void;
   onClose?: () => void;
