@@ -2,6 +2,8 @@ export interface Plan {
   id: string;
   name: string;
   priceUSD: number;
+  priceZAR: number;
+  amountZARInCents: number;
   paystackPlanCode: string;
   description: string;
   features: string[];
@@ -12,7 +14,9 @@ export const SUBSCRIPTION_PLANS: Record<string, Plan> = {
     id: "starter",
     name: "Starter",
     priceUSD: 39,
-    paystackPlanCode: process.env.NEXT_PUBLIC_PAYSTACK_STARTER_PLAN_CODE || "PLN_YOUR_STARTER_CODE",
+    priceZAR: 640,
+    amountZARInCents: 64000,
+    paystackPlanCode: process.env.NEXT_PUBLIC_PAYSTACK_STARTER_PLAN_CODE || "PLN_k2glfghofgnnbdg",
     description: "Ideal for individual luxury curators and single-brand boutiques.",
     features: [
       "7-Day Free Trial",
@@ -26,6 +30,8 @@ export const SUBSCRIPTION_PLANS: Record<string, Plan> = {
     id: "pro",
     name: "Pro",
     priceUSD: 99,
+    priceZAR: 1620,
+    amountZARInCents: 162000,
     paystackPlanCode: process.env.NEXT_PUBLIC_PAYSTACK_PRO_PLAN_CODE || "PLN_YOUR_PRO_CODE",
     description: "Ideal for independent luxury brokers and boutique dealers.",
     features: [
@@ -40,6 +46,8 @@ export const SUBSCRIPTION_PLANS: Record<string, Plan> = {
     id: "deluxe",
     name: "Deluxe",
     priceUSD: 299,
+    priceZAR: 4900,
+    amountZARInCents: 490000,
     paystackPlanCode: process.env.NEXT_PUBLIC_PAYSTACK_DELUXE_PLAN_CODE || "PLN_YOUR_DELUXE_CODE",
     description: "Designed for multi-brand luxury retailers & high-volume brokers.",
     features: [
