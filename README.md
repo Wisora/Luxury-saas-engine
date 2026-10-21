@@ -4,9 +4,9 @@
 
 *An enterprise-grade multi-tenant platform tailored for luxury curators, high-end brokers, and boutique dealers.*
 
-[![Live Application](https://img.shields.io/badge/🚀_Live_App-View_Deployment-amber?style=for-the-badge)](https://luxury-saas-engine.vercel.app/)
+[![Live Application](https://img.shields.io/badge/🚀_Live_App-View_Deployment-amber?style=for-the-badge)](https://luxuryengine.wisorainnovations.com/)
 [![GitHub Repository](https://img.shields.io/badge/📂_GitHub-Source_Code-blue?style=for-the-badge)](https://github.com/wisora/luxury-saas-pipeline)
-[![Vercel Status](https://img.shields.io/badge/Vercel-Deployed-success?style=for-the-badge&logo=vercel)](https://luxury-saas-engine.vercel.app/)
+[![Vercel Status](https://img.shields.io/badge/Vercel-Deployed-success?style=for-the-badge&logo=vercel)](https://luxuryengine.wisorainnovations.com/)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js" alt="Next.js" />
@@ -23,8 +23,8 @@
 ## 🌟 Key Features
 
 - **Multi-Tenant Storefront Provisioning:** Dynamic subdomain & tenant routing for boutique luxury brands.
-- **Flexible Subscription Tiers:** Built-in support for Starter ($39/mo), Pro ($99/mo), and Deluxe ($299/mo) plans with 7-day free trial workflows.
-- **Paystack Payment Infrastructure:** Multi-currency payment processing and billing automation.
+- **Flexible Subscription Tiers:** Built-in support for Starter ($39 / R640/mo), Pro ($99/mo), and Deluxe ($299/mo) plans with 7-day free trial workflows.
+- **Paystack Payment Infrastructure:** Multi-currency payment processing, ZAR local banking support, and billing automation.
 - **Intelligence & Compliance Auditing:** Integrated visual compliance tools and market signal telemetry.
 - **Spatial Canvas Ready:** Designed for modern 3D spatial storefront experiences.
 
@@ -33,7 +33,7 @@
 ## 🌐 Live Storefront & Client Preview
 
 Prospective clients and partners can inspect the live application directly:
-👉 **[Launch Live Luxury SaaS Engine](https://luxury-saas-engine.vercel.app/)**
+👉 **[Launch Live Luxury SaaS Engine](https://luxuryengine.wisorainnovations.com/)**
 
 ---
 
