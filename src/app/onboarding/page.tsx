@@ -68,21 +68,21 @@ export default function OnboardingPage() {
     try {
       const activePlan = PRICING_PLANS.find((p) => p.id === selectedPlan);
 
-      // 1. Fallback if plan not found
       if (!activePlan) {
         alert('Please select a valid pricing plan.');
         setLoading(false);
         return;
       }
 
-      // 2. Initialize Paystack Checkout for Selected Subscription Plan
+      // Initialize Paystack Checkout
       const res = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
+          brandName: brandName,
           tenantSubdomain: subdomain,
-          amountInZar: activePlan.price,
+          amount: activePlan.price, // Handled in API route as USD or converted to ZAR cents
           planCode: activePlan.planCode || 'PLN_DEFAULT_STARTER',
         }),
       });
