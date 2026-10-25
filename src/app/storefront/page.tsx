@@ -39,7 +39,7 @@ export default function StorefrontPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <button
             onClick={() => router.push("/")}
-            className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-amber-400 transition-colors"
+            className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-amber-400 transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Return to Orchestrator Console</span>
@@ -54,7 +54,7 @@ export default function StorefrontPage() {
 
           <button
             onClick={() => router.push("/onboarding")}
-            className="text-xs font-semibold uppercase tracking-wider text-slate-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-1.5 rounded-lg transition-all shadow-md shadow-amber-500/10"
+            className="text-xs font-semibold uppercase tracking-wider text-slate-950 bg-amber-400 hover:bg-amber-300 px-3.5 py-1.5 rounded-lg transition-all shadow-md shadow-amber-500/10 cursor-pointer"
           >
             Create Storefront
           </button>
@@ -90,7 +90,7 @@ export default function StorefrontPage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all whitespace-nowrap cursor-pointer ${
                   selectedCategory === cat.id
                     ? "bg-amber-400/10 border border-amber-400 text-amber-300"
                     : "bg-gray-900 border border-gray-800 text-gray-400 hover:text-white"
@@ -152,7 +152,7 @@ export default function StorefrontPage() {
 
                   <button
                     onClick={() => router.push("/onboarding")}
-                    className="flex items-center gap-1.5 text-xs font-mono text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1.5 rounded-lg border border-amber-400/30 transition-all"
+                    className="flex items-center gap-1.5 text-xs font-mono text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1.5 rounded-lg border border-amber-400/30 transition-all cursor-pointer"
                   >
                     <span>Inquire / Buy</span>
                     <ExternalLink className="w-3 h-3" />

@@ -1,8 +1,10 @@
+
 // types.ts
 
 export interface LuxuryItem {
   id: string;
   title: string;
+  description?: string; // <-- Added to support item descriptions in the storefront
   category: string;
   brand: string;
   price: number;
