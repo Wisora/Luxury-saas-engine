@@ -1,17 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Automatically redirect root domain visitors to the onboarding route
-  async redirects() {
-    return [
-      {
-        source: '/',
-        destination: '/onboarding', // Points to src/app/onboarding/page.tsx
-        permanent: false,
-      },
-    ];
-  },
-
   // Allow external image hosts for <Image /> component
   images: {
     remotePatterns: [
