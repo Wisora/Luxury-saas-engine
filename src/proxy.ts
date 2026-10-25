@@ -14,9 +14,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Pass through root platform landing page & local development
+  // 2. Pass through root platform landing page, core domains & local development
   if (
     hostname === 'wisora.com' ||
+    hostname.includes('wisorainnovations.com') ||
+    hostname.includes('luxuryengine') ||
     hostname.includes('.vercel.app') ||
     hostname.includes('localhost') ||
     hostname.includes('127.0.0.1')
@@ -29,12 +31,12 @@ export function proxy(request: NextRequest) {
   const currentHost = hostname.split(':')[0]; // strip port if present
 
   // Check if request is a direct subdomain (e.g. monarch.wisora.com)
-  const isSubdomain = currentHost.endsWith('.wisora.com');
+  const isSubdomain = currentHost.endsWith('.wisora.com') || currentHost.endsWith('.wisorainnovations.com');
   const domainSlug = isSubdomain ? currentHost.split('.')[0] : currentHost;
 
   if (domainSlug && domainSlug !== 'www') {
-    // Rewrite host to page route parameter: src/app/tenants/[domain]/page.tsx
-    url.pathname = `/tenants/${domainSlug}${url.pathname}`;
+    // Rewrite host to page route parameter: src/app/tenant/[domain]/page.tsx
+    url.pathname = `/tenant/${domainSlug}${url.pathname}`;
     return NextResponse.rewrite(url);
   }
 
