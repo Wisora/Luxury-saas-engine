@@ -18,6 +18,18 @@ export async function GET(request: Request) {
     }
 
     const cleanDomain = sanitizeDomain(domain);
+    const lowerDomain = domain.toLowerCase();
+
+    // 🔴 PLATFORM GUARD: Never serve storefront data for master engine domains
+    if (
+      cleanDomain === 'luxuryengine' ||
+      lowerDomain.includes('wisorainnovations.com') ||
+      lowerDomain.includes('vercel.app') ||
+      lowerDomain === 'localhost' ||
+      lowerDomain === 'www'
+    ) {
+      return NextResponse.json({ error: 'Forbidden: Master platform domain' }, { status: 403 });
+    }
 
     // Find tenant by subdomain or custom domain, including products
     const tenant = await prisma.tenant.findFirst({
@@ -36,7 +48,6 @@ export async function GET(request: Request) {
     });
 
     if (!tenant) {
-      // Return a polite empty storefront object instead of a hard 404 crash
       return NextResponse.json({
         id: 'fallback-tenant',
         name: cleanDomain.toUpperCase(),

@@ -1,10 +1,10 @@
 'use client';
 
 import { use, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, redirect } from 'next/navigation';
 import Image from 'next/image';
 
-// Correct relative path to LanguageSelector in src/app/tenant/[domain]/LanguageSelector.tsx
+// Correct relative path to LanguageSelector
 import LanguageSelector, { translations, Language } from '../LanguageSelector';
 
 type Product = {
@@ -31,10 +31,6 @@ export default function TenantPublicPage({ params }: Props) {
   const { domain } = use(params);
   const router = useRouter();
 
-  const [lang, setLang] = useState<Language>('en');
-  const [tenant, setTenant] = useState<TenantData | null>(null);
-  const [loading, setLoading] = useState(true);
-
   // Normalize incoming domain string
   const normalizedDomain = (domain || '').toLowerCase().trim();
 
@@ -45,17 +41,17 @@ export default function TenantPublicPage({ params }: Props) {
     normalizedDomain === 'wisorainnovations.com' ||
     normalizedDomain === 'www';
 
-  // If this domain is the main platform domain, redirect immediately to the root Orchestrator Dashboard
-  useEffect(() => {
-    if (isMainEngineDomain) {
-      router.replace('/');
-    }
-  }, [isMainEngineDomain, router]);
+  // INSTANT SERVER/RENDER REDIRECT: Stop execution immediately if main domain
+  if (isMainEngineDomain) {
+    redirect('/');
+  }
+
+  const [lang, setLang] = useState<Language>('en');
+  const [tenant, setTenant] = useState<TenantData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Fetch tenant storefront data only if it is a genuine subtenant domain
   useEffect(() => {
-    if (isMainEngineDomain) return;
-
     async function fetchStorefront() {
       try {
         const res = await fetch(`/api/storefront?domain=${encodeURIComponent(domain)}`);
@@ -71,17 +67,7 @@ export default function TenantPublicPage({ params }: Props) {
     }
 
     fetchStorefront();
-  }, [domain, isMainEngineDomain]);
-
-  // Render a minimal loader while redirecting main engine requests to /
-  if (isMainEngineDomain) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center font-mono text-amber-400 text-xs space-y-3">
-        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-        <p className="uppercase tracking-widest">Routing to Main App Console...</p>
-      </div>
-    );
-  }
+  }, [domain]);
 
   const t = translations[lang];
   const accentColor = tenant?.accentColor || '#D4AF37';
